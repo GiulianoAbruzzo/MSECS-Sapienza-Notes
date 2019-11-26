@@ -1,7 +1,5 @@
 # MSECS-Sapienza-Notes
-Notes of several master courses attended at sapienza engineering in computer science.
-Special thanks to Francesco Carpineti, Federico Gioia, Francesco D'Abbraccio, Carmine Mansueto.
+Notes of several master courses attended at **Sapienza, engineering in computer science.**<br/>
+Special thanks to *Francesco Carpineti, Federico Gioia, Francesco D'Abbraccio, Carmine Mansueto*.<br/>
 
-
-PAGAMEH NA BIRRA:
-paypal.me/giulianoabruzzo
+**SPICCI PE NA BIRRA: ** [paypal](paypal.me/giulianoabruzzo)
