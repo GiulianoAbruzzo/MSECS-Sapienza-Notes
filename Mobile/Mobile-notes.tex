@@ -1,0 +1,221 @@
+\documentclass{article}
+\author{Giuliano Abruzzo}
+\title{Mobile Application and Cloud Computing Notes}
+\usepackage{geometry}
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage{algorithm}
+\usepackage{color}
+\usepackage[table,xcdraw]{xcolor}
+\usepackage{amssymb}
+\input{insbox}
+
+\begin{document}
+\maketitle
+\newpage
+\tableofcontents
+\newpage
+\section{Cap 1: Introduction}
+A \textbf{mobile application} is composed by five \emph{fixed blocks}:
+\begin{itemize}
+\item \textbf{Front-end};
+\item \textbf{Back-end};
+\item \textbf{Storage};
+\item \textbf{Web-API};
+\item \textbf{Cloud service};
+\end{itemize}
+The \textbf{cloud computing} is a way to deliver remote \emph{virtual resources} through \emph{internet}. \emph{Mobile application} are different from \emph{desktop} ones cause they are very \emph{easy to install} and few ones are used with respect to the number of installed ones. They are afflicted by \emph{crash} and \emph{bad UX }(user experience), and they are very slow. Right now there is a duopoly: \textbf{Android} and \textbf{iOS}, \emph{iOS} devices are \emph{closed-source} and work on one \emph{market} only, while \emph{Android} ones are \emph{open source} and are used by several producers that can customize the basic \emph{OS} of the device, and there are several markets. Apps have success cause they solve a problem simple and it's funny to use them. Apps doesn't have success cause they have \emph{bad UX}, they have bad performance and for improper testing. \\\\
+The \emph{smartphones} are a \textbf{disruptive technology}, that is a technology that changes the \emph{market} and replaces the \emph{existing technology}, this process is called \textbf{dematerialization}, using less to produce more. They are also an \emph{innovation} in the \emph{media} in \emph{banking} and \emph{entertainment}. We call \textbf{digitalization} the process in which we decouple \emph{information} from \emph{physical support} (from a book to a ebook, ...). The mobile app can be classified in:
+\begin{itemize}
+\item \textbf{Web-site for mobile devices}: in which we deliver web content to mobile devices, using web site style navigation;
+\item \textbf{Web app}: web application that mimics native apps look and feel as well as navigation;
+\item \textbf{Native apps}: applications installed on the devices, purchased from app stores;
+\item \textbf{Hybrid apps}: applications that mixed web and native application;
+\item \textbf{[Native] Native applications}: application that direct access to C/C++ libraries;
+\end{itemize}
+\clearpage
+\section{Cap 2: Web Technologies for Mobile Apps}
+We want to understand how \textbf{web technologies} may be used in \emph{mobile apps} and basic notation of \textbf{Responsive Web Design }or \textbf{RWD}. In \emph{static web}, in which we don't have any \emph{sever-side computation}, when we connect to a \emph{web page} we execute it, and we download the \emph{page} from the \emph{server} which acts like a \emph{dispatcher}, so the \emph{web browser} acts like a VM.
+\begin{itemize}
+\item In \textbf{mobile web apps architecture }we just avoid fetching page from the site, we store the \emph{web page} locally and the \textbf{web rendering engine} is run and we load the \emph{web page} in the \emph{engine};
+\item In the \textbf{hybrid app architecture} after the run of the \emph{web rendering engine}, a \emph{native mapping} is made;
+\item In \textbf{native looking web apps} we don't have the web related user interaction (like scrolling or zooming) but we have native looking widgets and native features;
+\end{itemize}
+A \emph{website} designed for \emph{desktop} may provide a \emph{bad UX} for \emph{mobile}, so we should change the \emph{layout} and use \emph{images} suitable to screen resolution. We will use \textbf{vector images}, these are images described in terms of \emph{points} connected by \emph{lines} and \emph{curves} in order to form \emph{polygons}, the most popular is the \textbf{SVG} format, or \textbf{Scalable Vector Graphics} that is a \emph{web graphics language} that allows to create \emph{static} and \emph{dynamic images}. \emph{Vector images} are preferred cause they may be of any size instead the \emph{scalar images }have their own pixel size.\\\\
+ If we want to display the same \emph{image} on screens with different \textbf{aspect ratio} (from 16:9 to 4:3) we preserve the \emph{original shape}, by scaling the \emph{image} and \emph{centering} it and then we add two \emph{horizontal bars} called \emph{letterbox}. A common smartphone screen \emph{aspect ratio} is 9:16, so when we display it on a 16:9 TV we will see two \emph{vertical lines}, similar to the \emph{letterbox} called \emph{pillarbox}.\\\\
+\textbf{Screen resolution} is how many \emph{pixels} are displayed per inch, and this is expressed in \emph{PPI}. The eye has a \emph{resolution} limit, so a $PPI > 300$ doesn't makes sense. When a \emph{web browser} has to render a \emph{web page} in order:
+\begin{itemize}
+\item Parse \emph{HTML tags} to \emph{DOM object} in a \emph{DOM tree};
+\item Parse \emph{CSS} in order to define how to display the content of \emph{HTML elements};
+\item Attach \emph{CSS properties} to \emph{DOM objects}, creating a \emph{render tree};
+\item \emph{Layout process} the \emph{render tree}, where \emph{physical position} are assigned to elements;
+\item Painting the \emph{render tree};
+\end{itemize}
+The \textbf{rendering process} is done with respect to the \textbf{viewport}, that is the \emph{size} of the whole available \emph{area} where the \emph{page} is displayed. Using the \emph{real device viewport} may look bad or break, so \emph{rendering} is done using a \emph{wider} \textbf{virtual viewport}, where a user can zoom and move to see different areas of the \emph{page}. In order to deal with different \emph{viewport} we can create a \emph{CSS} for every different \emph{screen} (so on \emph{server side}), or define a \emph{CSS per-screen} on the \emph{client side}, also called \textbf{responsive web} and is made through \emph{CSS media query}.\\\\
+Sometimes we need to run some \textbf{logic part} of the \emph{app} (the \emph{backend}) remotely in some \textbf{services}, cause the \emph{information} contained are a lot (like \emph{authentication services}, \emph{complex algorithms}, ...). A \emph{mobile application} is connected to such \emph{services} through different \emph{protocols}, and several \emph{APIs} are used to retrieve information. \emph{AJAX} allows for exchanging \emph{data} via \emph{HTTP} and works in a \emph{asynchronous multi-thread} flavor. The \emph{caller} is notified when the \emph{HTTP} returns. It is used when we have to retrieve \emph{data} from the same origin of the loaded page, and to change the \emph{web page} without blocking it. \emph{XML} and \emph{JSON formats} are used for the object exchanged by these services. In an \emph{XML HTTP request object} interaction, we call the \emph{server side} element and the response is sent to a \emph{callback function}, which changes the\emph{ web page} properly. In order to retrieve data from different origins we have to use the $<script>$ tag, where\emph{ JS script} can be loaded, using \emph{JSONP} which allows to load a \emph{JS file }with these functions that fetch \emph{data}. 
+
+\section{Cap 3: Android Native App}
+\begin{itemize}
+\item \textbf{Android} is a \emph{linux-based operating system} with important changes in \emph{process} and \emph{memory management}. An \emph{application} runs inside a \textbf{process}, and \emph{processes} running \emph{applications} are all created from the same \emph{process} called \textbf{Zygote} that is a main process which contains a pre-warmed execution \emph{environment} required to all the \emph{apps}, and this reduces the start-up time;
+\item In \emph{android}, we have only \emph{fork operation} not \emph{exec};
+\item In \emph{Android} the \textbf{OOM Killer} (\emph{Out of memory killer}), the mechanism that the \emph{kernel} uses to recover \emph{memory} by killing processes, is different from \emph{tradition Linux} since the \emph{processes} are \textbf{ranked} according to the \emph{state} of the contained \emph{application}, and an \emph{application} can be resumed;
+\item Each \emph{processes} that runs an \emph{application} belong to a unique and different \emph{user}, so the files created by an app cannot be read from other apps, and the \textbf{Intent} is the \emph{app-to-app communication}, and can be \emph{explicit} (target app) or \emph{implicit} (any application that can perform an action required); 
+\item There are \emph{managers} for \emph{package, telephony, location, activity, resource} and \emph{notifications};
+\item In the traditional way the \emph{OS} manages \emph{processes} providing the \emph{execution environment}, and for each process we have a \emph{fork} and a \emph{exec}. Instead in the \emph{Android} one, the server process contains all the \emph{android managers}, and all the \emph{processes} are forked from \emph{Zygote};
+\item Since in \emph{Android} we have a problem of \textbf{fragmentation}, as new feature are added \emph{support libraries} are developed, so that such features are also available to older \emph{android versions};
+\item The \textbf{Android kernel}, provides a level of \emph{abstraction} between the \emph{device hardware} and contains all the essential \emph{hardware drivers}. The \emph{binder} is a special \emph{driver} designed to provide secure \emph{communication} between \emph{apps};
+\item The \textbf{ART}, \emph{Android run time}, runs directly on \emph{hardware}, and each \emph{app} runs in its own \emph{process} and with its own instance of the \emph{Android Run-time};
+\item The \emph{native libraries} (C++) are needed in the case an app handles \emph{2D rendering, graphics, particular media format}, ... ;
+\item The entire feature set of the \emph{Android OS} is available through \emph{Java packages}, collected in the \textbf{Android Framework}: \emph{apps}, \emph{database, graphics, hardware API} are contained there; 
+\end{itemize}
+
+\section{Cap 4: Activity, Fragment, Navigation, Displaying large content}
+\begin{itemize}
+\item The \emph{Android screen} is composed by several elements, and the smaller one is called \textbf{View}. \emph{Views} are organized in several ways thanks to \textbf{Layouts}, that are \emph{Viewgroups} used to host other \emph{views}, and \textbf{Containers} used to handle \emph{dynamic} contents or content bigger than the screen size;
+\item \emph{Dynamic} content management require special care in order to optimize performance, and a very common pattern is a \emph{list} of item, for this there are special \emph{views} like the \textbf{Recyler View};
+\item A \textbf{style} is a collection of \emph{attributes} that specify the appearance for a single \emph{View};
+\item A \textbf{theme} is a type of \emph{style} that's applied on the\emph{ entire app}, \emph{activity} or \emph{view hierarchy};
+\item An \emph{application} is composed by at least one \textbf{Activity}, that is the \emph{controller} of the \emph{GUI}, and runs inside the\emph{ main thread} and it is reactive to \emph{user input}. All the activity are managed by the \textbf{Activity manager}, via a \emph{back stack} which contains all the previous \emph{activities}, where the \emph{current activity} (\textbf{foreground activity}) is on top and all the other \emph{actives} that are not yet destroyed are below;
+\item The set of activities launched by a user is a \emph{Task}, and each application runs inside its own \emph{Process}, all the components of an \emph{app} runs inside the only created thread (\emph{main thread}), usually other \emph{threads} are created to perform long running operations (services), and an \emph{activity} in a \emph{task} can belong to a different \emph{application} and run in a different \emph{processes};
+\item Each \emph{activity} in an \emph{application} got its own \textbf{life-cycle} responding to a set of \emph{Android} methods like:
+\begin{itemize}
+\item \emph{onCreate}, a method that runs when the \emph{activity} is \emph{created};
+\item \emph{onDestroy} that happens when an \emph{activity} is \emph{shut down};
+\item \emph{onPause} called when the system is about to start resuming another \emph{activity}, generally used to commit \emph{unsaved changes};
+\end{itemize}
+\item We can use a \textbf{Bundle} in order to save state but only for small data, instead we can use the \textbf{ViewModel} for large amount of data;
+\item The states of an \textbf{Activity} can be:
+\begin{enumerate}
+\item \textbf{Running}: the \emph{activity} is \emph{foreground} and has the focus, so all the \emph{events} are delivered to it;
+\item \textbf{Paused}: the \emph{activity} is \emph{partially visible}, like with a \emph{dialog box}, all state and information are maintained but the \emph{system} can kill it;
+\item \textbf{Stopped}: the \emph{activity} is completely obscured by another one;
+\end{enumerate}
+\item An \textbf{Activity} is \emph{explicitly} created if another \emph{Activity} use an \emph{Intent};
+\item An \textbf{Activity} is \emph{implicitly} created when an \emph{Activity} declares to the system its ability to perform \emph{actions} through \textbf{intent-filter}, and a calling \emph{activity} ask to the \emph{activity manager} who can perform an \emph{action} required;
+\item \textbf{Fragments} are like small \emph{activity}, hosted inside an \emph{activity}, so they are attached to a \emph{view} and they have their own \emph{view}, and they have their own \emph{life-cycle} (more complex than the \emph{activity}) and these \emph{fragments} can be added through XML or programmatically and they are handled by a \textbf{Fragment Manager};
+\item The \emph{user} interacts with the \emph{screen} using fingers, and this generates \textbf{MotionEvents} which can be also \textbf{MultiTouch} based, where each \emph{finger} is a pointer and the \emph{events} are grouped into a \emph{MotionEvent} object;
+\item \textbf{2D graphics} can be \emph{animations}, \emph{SurfaceView-based} or \emph{simple View-based};
+\item Since the \emph{screen size} of the \emph{device} is limited, many times we need to show a content that is bigger than the \emph{screen}, so we special \textbf{layout} and classes to deal with this problem:
+\begin{itemize}
+\item \textbf{ListActivity}: a subclass of \emph{Activity}, in which there is no \emph{layout} to inflate, that allows to display an array of \emph{items} that are clickable and an \emph{ArrayAdapter} is required to transform an item into a \emph{view}, by default creates a view by calling an operation of \emph{toString()};
+\item \textbf{ListView} and \textbf{GridView}: \emph{layouts} similar to \emph{ListActivity} but extend \emph{AppCompatActivity};
+\item \textbf{RecyclerView}: faster and more flexible, automatically recycles views as they are no longer visible so is more efficient, use a \emph{LayoutManager} to manage the \emph{views}, and an \emph{Adapter} to create and to update data of the \emph{View}, also allows animations;
+\item If \emph{data source} is remotely located on a network we can use an additional \emph{thread} to fetch data \emph{asynchronously}, and the \emph{adapter} is notified when data are available;
+\end{itemize}
+\end{itemize}
+\section{Cap 5: Storage Options}
+\begin{itemize}
+\item As we seen, there is often the need of \textbf{saving data} and working at persistent across several \emph{states} of a \emph{process}, like in the case of GUI data. We saw that is possible to use the \textbf{ViewModel}, that is a class designed to stare and manage \emph{data} related to UI in a \emph{life-cycle} conscious way;
+\item The \textbf{LiveData} is a library class for \emph{data observation}, that notify the observer when the data it holds changes;
+\item Observed \emph{Data} are usually stored inside a \emph{view model}, in this way, data persist over re-configuration and changes are notified to the observer;
+\item For \emph{dynamic content}, the \emph{data} are fetched from a \emph{data source} like a \emph{local DB} or \emph{network}, and a \textbf{repository} is used to decouple data source from data usage;
+\item There is also \textbf{Room DB}, that manages local data \emph{SQLite} data source by using objects;
+\item Any app in \emph{Android} is a \textbf{Linux user}, and an app can belong to one or more \textbf{Linux groups}, this property is used to implement the \emph{android permissions};
+\item \emph{Android} uses \textbf{Virtual File System} also called \emph{VFS}, so many different type of \emph{file-systems} can be used. \emph{VFS} is a single hierarchy and we have two main classes of file-system: \emph{media-based} (stored in physical media) and \emph{pseudo file-systems};
+\item There are several \emph{storage options} and they depend on the type of data we want to store, such options are:
+\begin{itemize}
+\item \textbf{SharedPrefence}: small amount of data, like \emph{Key-Value pair}, it can be private to an \emph{Activity} or shared among \emph{Activities};
+\item \textbf{Internal Storage}: small to medium amount of data, private to the \emph{application};
+\item \textbf{External Storage}: not private data (like songs, video files);
+\item \textbf{Database}: \emph{SQLite}, structured data, private to the application;
+\item \textbf{Content Provider}: an API which exposes \emph{database} to another \emph{process}, and widely used in clock, alarm, calendar, and widgets, they can be accessed by \emph{Intent} even indirectly;
+\end{itemize}
+\item \textbf{Files} represent by \emph{File class} (\emph{java.io package}), can be \emph{Internal} (internal flash memory) or \emph{External} (sd card) 
+\end{itemize}
+\section{Cap 6: Business Layer}
+The \textbf{business logic} of an \emph{app} is the running of code, working on \emph{input data} and producing an \emph{output}. This is done through several solutions:
+\begin{itemize}
+\item \textbf{Worker Threads}: \emph{Java standard Thread} and \emph{Runnable classes} instances used in \emph{Android apps}. They can communicate through a \emph{Loop} which receive messages, while an \emph{Handler} is used for sending and processing messages to a specific queue. In order to schedule actions on the \emph{Main Thread} (called also \emph{UIThread}) we have to append \emph{Runnables} to \emph{View} queues cause a \emph{Thread} cannot modify the \emph{Main Thread};
+\item \textbf{AsyncTask}: a class which allows to perform background operation and publishes the result of the \emph{UIThread}, without having to manipulate other threads;
+\item \textbf{Service}: an \emph{application component} that runs in \emph{background} and doesn't interact with the \emph{user} for an indefinite period of time. The \emph{services} run in the \emph{main thread} of their hosting process, the difference with the \emph{Thread} is that they are software components with a own \emph{life-cycle}, and they can also run in \emph{background}. If a \emph{service} is destroyed by the OS they can be \emph{re-created} according to the \emph{restart} options, and they can be private or system-wide. There are 3 different types of services:
+\begin{itemize}
+\item \textbf{Background services}: perform operations that isn't directly noticed by the user;
+\item \textbf{Foreground services}: perform operations that it noticeable to the user;
+\item \textbf{Bounded services}: it is the \emph{server} in a \emph{client-server interface}, it runs only as long as another application component is bound to it. Multiple components can bind to a single service, but when there are no more components bounded to it, the service is destroyed;
+\end{itemize}
+\item \textbf{Job Scheduler}: used when a \emph{Task} don't require an exact time, but it could be \emph{scheduled} based on \emph{system} and \emph{user requirements}, so it allows to set conditions in order to own a specific \emph{task};
+\item \textbf{Broadcast receives}: is a \emph{software components} which reacts to \emph{system-wide events}. A \emph{receiver} has to register specific \emph{Intents} and this can be done \emph{Statistically} (XML), so remain dormant and respond to the intent, or \emph{Dynamically}, where receivers are alive as long as the activity who registered them is alive;
+\end{itemize}
+\section{Cap 7: Native and Hybrid Apps}
+Some times we need to execute \textbf{C/C++ code} for performance reason or for specific libraries like \emph{OpenCV}. This can be done simply loading the \textbf{native library} in an \emph{Activity} and then by using methods to handle data returned by the \emph{C/C++ code} and inserting it into \emph{Java} again.
+\begin{itemize}
+\item The \textbf{system load library} produce a \emph{shared library} that can be loaded at \emph{run time}, the \emph{shared library} contains the actual executable code. The code uses the \emph{shared library} through an \emph{address} and this is relocated by \textbf{dynamic linker};
+\item A \emph{Java call} to a \emph{native method} triggers the execution of the native code;
+\item \textbf{Java $\rightarrow$ Native}: JNI, native methods translated into executable code, linked and available as a library;
+\item There are three possible way to do that:
+\begin{itemize}
+\item Blocking call:
+\begin{itemize}
+\item In which the main thread (Java), calls the native (C++), and the main thread blocks itself until the result;
+\end{itemize}
+\item \emph{Native calls Java asynchronous};
+\begin{itemize}
+\item In which the main thread (Java), calls in an asynchronous way a native thread (C++), so the main thread doesn't stop;
+\end{itemize}
+\item Blocking \emph{Java thread}, avoiding native to find and call java methods;
+\begin{itemize}
+\item In which the main thread (Java), calls in an asynchronous way a Java thread that inside calls the native methods (C++)  ,so the main thread doesn't stop, and he gets the results from the thread in Java and not in C++ like in the second method;
+\end{itemize}
+\end{itemize}
+\item \textbf{Native $\rightarrow$ Java}: exploits Java Reflection, no executable code produced at compile time;
+\item \textbf{JS $\rightarrow$ Android}: Android code is made available to the JS interpreter;
+\item \textbf{Android $\rightarrow$ Native}: evaluate JS code at run-time, and it is similar to reflection;
+\end{itemize}
+\section{Cap 8: iOS}
+Every \textbf{iOS application} follows a \textbf{MVC patter} and the code is strictly related to this organization. The \emph{application} is written in an \emph{Object Oriented language}, and the app is a collection of managed objects (with a \emph{life-cycle}) that responds to \emph{events} (\emph{GUI} and \emph{OS}). Apps are \emph{multi-thread} with one \emph{main thread} looping on \emph{UI} related \emph{user event}, and other \emph{threads} used for long \emph{Tasks} running in background. The app behavior is defined through a \emph{storyboard}, in which we define much of \emph{navigation logic}. \textbf{Application Delegate} and \textbf{View controller} are the most important ones cause they are pre-created when we open a new project in \emph{Xcode}. Other difference with \emph{Android} are: \emph{Intent} becomes \emph{Segue}, and \emph{Brodcast Receiver} becomes \emph{Notification}.
+
+\section{Cap 9: Cloud Computing}
+\textbf{Cloud computing} is the \emph{on-demand} availability of \emph{computer system resources}, especially \emph{data storage} and \emph{computational power} without direct active management of the \emph{user}. The \emph{cloud computing} is enabled by factors like \emph{distributed computing}, \emph{internet technologies, hardware} and \emph{system management techniques}. An example of this technology is \textbf{Dropbox}, it has 2 \emph{access elements}, one for \emph{user} (\emph{web based} and \emph{proxy}) and one for \emph{developers} (\emph{web-api calls and different development technologies}). The main characteristics of \emph{cloud computing} are:
+\begin{itemize}
+\item\textbf{ Pay-per-Use};
+\item \textbf{Elastic capacity};
+\item \textbf{Self-service interface};
+\end{itemize}
+We have different \emph{deliver models}:
+\begin{itemize}
+\item Classic:
+\begin{itemize}
+\item \textbf{SaaS}: \emph{Software} as a Service;
+\item \textbf{PaaS}: \emph{Platform} as a Service;
+\item \textbf{IaaS}: \emph{Infrastructure} as a Service;
+\end{itemize}
+\item Others:
+\begin{itemize}
+\item \textbf{BaaS}: \emph{Backend} as a Service, that provides support to app in terms like DB, notification, auth, like firebase;
+\item \textbf{MBaaS}: \emph{Mobile Backend} as a Service, like Google Cloud Platform;
+\item \textbf{FaaS}: \emph{Function} as a Service;
+\item \textbf{SaaS}: \emph{Storage} as a Service, like Dropbox;
+\end{itemize}
+\end{itemize}
+In order to use a \textbf{cloud service} we have to: register to the \emph{console}, register the \emph{application} and getting the \textbf{API-KEY}, and use the \emph{service} from the \emph{registered app} with \textbf{app authentication}. The \emph{authentication} of the app usually is granted through an \emph{API KEY} that the \emph{provider} generate. Some \emph{Web-API }allows to get access to sensible data only with \emph{Access Token}. \\\\
+Let's talk about \textbf{SaaS}, it's a complete environment to build, manage and deploy \emph{apps}. We use a \emph{virtualization} of the layers with the use of \emph{containers} (\emph{Docker}), that differently from \emph{VMs}, the \emph{containers} share the same \emph{OS}, and the same \emph{libraries} if needed. \emph{Containers} include \emph{application} and all of it \emph{dependence}, they share the same \emph{Kernel}, same \emph{OS} with other \emph{containers}. A key feature of \emph{SaaS} is \textbf{scaling}, which can be:
+\begin{itemize}
+\item \textbf{Vertical}: when the response time of typical \emph{application} depends on the rate of \emph{requests} received, in order to avoid \emph{congestion}, \emph{physical machine} is upgraded as possible;
+\item \textbf{Horizontal}: where the \emph{app} is divided into different \emph{components} that can be replicated on different \emph{physical machines} so the requests can be handled in \emph{parallel}, or we can separate the \emph{app} is \emph{modules} with different roles connected each other;
+\item \textbf{Micro-services}: another way is to implement the \emph{app} as a set of \emph{micro-services}, where each \emph{service} exposes public \emph{API} computing a \emph{asynchronous communication service to service};
+\item \textbf{Automatic Scaling}: the \emph{auto-scaling} is based on predicting when to scale with usage of \emph{machine learning algorithms};
+\end{itemize}
+\textbf{Iaas} instead is a \emph{cloud infrastructure} that enables on-demand provisioning of \emph{servers} running several choices of \emph{OS} and a \emph{customized software stack}. They are usually composed by \emph{large-scale data centers}, and they offer \emph{virtualized resources} on demand. \\\\
+A \textbf{VM}, or \emph{Virtual Machine}, is a \emph{logic machine} $M_L$ whose \emph{ISA} is implemented exploiting \emph{software} running on a \emph{physical machine} $M_F$, and there are two main types:
+\begin{itemize}
+\item \textbf{Native}: in which $M_L = M_F$ we have same \emph{ISA}, the instructions of the $M_F$ are in large part executed on the real \emph{CPU};
+\item \textbf{Emulation}: in which $M_L \neq M_F$ so different \emph{ISA}, emulation of \emph{HW}, and installation of different \emph{OS};
+\end{itemize}
+The \textbf{virtualization} is realized a \textbf{Virtual Machine Monitor} or \textbf{Hypervisior} and can be \emph{full virtualization}, or \emph{para virtualization} in which OS can be modified. A classical \emph{Virtual Machine Monitor} (VMM) executes \emph{guest operating system} directly, but at reduced privilege level. \emph{CPU} executes a \emph{Kernel instruction} of \emph{Guest OS} in case of privilege instruction, \emph{CPU} generates a \emph{trap} passing the control to \emph{VMM} that emulates the \emph{instruction}, these \emph{instructions} are different but produces the same effect. \emph{HW virtualization} allows running \emph{multiple OS} and \emph{software stacks} on a single\emph{ physical platform}. The \emph{VMM} mediates access to the \emph{physical hardware} presenting to each \emph{guest} operating system a \emph{VM}. There are two types of \emph{VMM}: 
+\begin{itemize}
+\item \textbf{Bare metal Hypervisior}: in which VMs run directly on top of HW;
+\item \textbf{Hosted Hypervisior}: in which VMs run on top of a Host OS. 
+\end{itemize}
+In the \textbf{Hardware Assisted Virtualization} processors are designed to help \emph{virtualization} so \emph{VMM} can use these instructions to improve the performance. The two main characteristic of VMs are \textbf{Isolation} and \textbf{Application mobility}:
+\begin{itemize}
+\item \textbf{Isolation}: is a property of virtualization where all programs instruction are fully confined inside a VM, so we have better security, reliability, and performance;
+\item \textbf{Application mobility}: allows a better \emph{HW maintenance} just by encapsulating a guest OS state in a VM allowing it to be suspended or migrated to a different platform;
+\end{itemize}
+The\textbf{ HW consolidation}, is \emph{VMM} that consolidate multiple \emph{workloads} into a \emph{single physical platform}. The \textbf{IaaS} challenge is to build a \emph{cloud infrastructure} that manage \emph{multiple physical and virtual resources} in an \emph{integrated way}. The software that is responsible of this orchestration is called \textbf{Virtual Infrastructure Manager} or \textbf{VIM}, that aggregates \emph{resources} from \emph{multiple computers} generating a \emph{uniform view} to \emph{user} and \emph{applications}.\\\\
+\textbf{OpenStack} is a \emph{cloud operating system} that control large amount of compute, networking and storage in a big data center managed from a dashboard by administrators, while users can use resources via a web interface. \\\\
+The \textbf{mobile cloud computing} exploits \emph{cloud approach} in order to boost the performance of an \emph{application}, and reduce the energy consumption. \textbf{CloneCloud} is a \emph{flexible application partitioner} that transforms a \emph{single-machine execution} into a \emph{distributed execution} automatically.
+
+
+\end{document}
