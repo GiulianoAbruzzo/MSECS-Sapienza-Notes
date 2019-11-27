@@ -1,0 +1,6 @@
+Dataset hw1: https://drive.google.com/file/d/0Bxxqx_AAp2u2enI0UzBqSEZQRHc
+Dataset hw2: http://www.diag.uniroma1.it/~labrococo/MAR/classification.htm
+
+Score:
+hw1: 1/2, no comparite analysis
+hw2: 2/2
