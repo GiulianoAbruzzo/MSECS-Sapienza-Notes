@@ -1,0 +1,2454 @@
+      ___   ____  ______    __                  
+     /   | / __ \/ ___/ |  / /                  
+    / /| |/ / / /\__ \| | / /                   
+   / ___ / /_/ /___/ /| |/ /                    
+  /_/__||||||_//____/ |___/__  _____ __    _ __ 
+    / ____/ /_  ___  _____/ /_/ ___// /_  (_) /_
+   / /   / __ \/ _ \/ ___/ __/\__ \/ __ \/ / __/
+  / /___/ / / /  __/ /__/ /_ ___/ / / / / / /_  
+  \____/_/ /_/\___/\___/\__//____/_/ /_/_/\__/  
+
+ ** Shitty notes of the Advanced Operating Systems and Virtualization course at
+    Sapienza University of Rome in a shitty text file **
+
+    Written with <3 by Andrea Fioraldi <andreafioraldi@gmail.com>
+
+The material is divided into chapters and each chapter, in general, covers
+multiple related topics.
+
+I know that you're searching in teh interweb for a PDF version of this notes,
+but it doesn't exists. Remember, PDFs are just containers for Use-After-Free
+bugs.
+
+Some topics that are for me obvious like the structure of GOT and PLT in the
+ELF and are omitted, others like concurrent data structures are written as
+pointers to (my) memory so these notes are not a replacement of the course
+material.
+
+=================
+Table of contents
+=================
+
+ 1  - An introduction to x86
+      1.1  - Branch prediction
+      1.2  - Hyper-threading
+      1.3  - Multi-core
+     
+ 2  - The x86 boot process
+      2.1  - Initial stage
+      2.2  - BIOS
+      2.3  - Stage 1
+      2.4  - Protected mode
+      2.5  - Paging
+      2.6  - x64 Longmode
+      2.7  - UEFI
+      2.8  - Cores wake up
+  
+ 3  - The Linux specific boot process
+      3.1  - Kernel loading
+      3.2  - Early paging
+      3.3  - The flow
+      3.4  - Init
+  
+ 4  - Memory management
+      4.1  - Numa nodes
+      4.2  - Zones initialization
+      4.3  - High memory
+      4.4  - Reclaiming boot memory
+      4.5  - Allocation context
+      4.6  - The SLAB allocator
+     
+ 5  - System calls
+      5.1  - Trap initialization
+      5.2  - Syscalls dispatching
+      5.3  - Syscalls table
+      5.4  - Call from userspace
+      5.5  - Modern syscall activation
+      5.6  - Spectre patch
+      5.7  - sys_ni_syscall
+  
+ 6  - Loadable modules
+      6.1  - Initialization
+      6.2  - Parameters
+      6.3  - Build and install
+      6.4  - Loading
+      6.5  - Kprobes
+      6.6  - Versions
+      6.7  - Locating syscalls table
+  
+ 7  - Interrupts and time
+      7.1  - Realtime OS
+      7.2  - IDT and GDT
+      7.3  - IDT entry initialization
+      7.4  - Entries types
+      7.5  - Gate descriptor
+      7.6  - Interrupts vs Traps
+      7.7  - Global activation scheme
+      7.8  - Do page fault
+      7.9  - Multi-core
+      7.10 - Inter Processor Interrupts
+      7.11 - IPI API
+      7.12 - I/O interrupts management
+      7.13 - Deferred work
+      7.14 - SoftIRQs
+      7.15 - Timekeeping
+      7.16 - Watchdogs
+  
+ 8  - Concurrency
+      8.1  - Properties
+      8.2  - Concurrent and preemtive kernels
+      8.3  - Race condition example
+      8.4  - Enable/disable
+      8.5  - Atomic operations
+      8.6  - Barriers
+      8.7  - Mutex and spinlocks
+      8.8  - Read-Copy-Update
+  
+ 9  - Virtual File System and Devices
+      9.1  - Introduction
+      9.2  - EXT2
+      9.3  - VFS global organization
+      9.4  - VFS and PCBs
+      9.5  - Operations
+      9.6  - Pathname lookup
+      9.7  - Syscalls
+      9.8  - Proc & Sys
+      9.9  - Devices
+  
+ 10 - Processes
+      10.1 - Process Control Block
+      10.2 - MM member
+      10.3 - PCB location
+      10.4 - Process and thread creation
+      10.5 - Program start
+ 
+ 11 - Scheduling
+      11.1 - Strategies
+      11.2 - Classes
+      11.3 - Structures
+      11.4 - Entry point
+      11.5 - States
+      11.6 - Schedulers
+      11.7 - Context switch
+ 
+ 12 - Virtualization and Containers
+      12.1 - Hypervisors
+      12.2 - Ring aliasing
+      12.3 - Paravirtualization
+      12.4 - Hardware assisted
+      12.5 - Kernel Samepage Merging
+      12.6 - Containers mechanisms
+      12.7 - Cgroups
+      12.8 - Namespaces
+
+ 13 - Conclusion
+
+======================
+An Introduction to x86
+======================
+
+1) Branch prediction
+--------------------
+
+Conditional branches are around 20% of the instructions in the code.
+
+ - Dynamic branch prediction, implemented in hardware and based on history
+ 
+ - Static branch prediction is commonly user-assisted and determined by
+   the compiler (likely/unlikely)
+
+The branch prediction table is a small memory indexed by the lower bits of the
+conditional instruction address.
+
+ - Prediction "take" is correct: 1 cycle penalty
+ - Predition "not take" is correct: no penalty
+ - Uncorrect prediction: change prediction, flush pipeline
+
+The 2 bit saturating counter is a 4 state table. T-T-NT-NT.
+
+A correlated predictor try to solve the problem of predictions that depends on
+multiple branches.
+It keeps a history of past m braches.
+
+A tournament predictor uses different predictor and associate, for each branch,
+the best predictor using 2-bit.
+
+For indirect branches, the game is harder.
+The branch target buffer is used (a small cache) when prediction bits are
+coupled with target addresses.
+
+For ret instruction, there is the return address stack buffer.
+
+The fetch both targets technique is a possibility but does not help with
+multiple targets (e.g. switches).
+
+2) Hyper-threading
+------------------
+
+A copy of the architectural state among each logical core. Less hardware
+required but needs an arbitration mechanism.
+
+In the Intel case there is a division in the architecture:
+
+ - Front-end:
+
+   This stage delivers instructions to the later pipeline. They are not
+   x86 CISC instructions but RISC u-ops that are converted by the microcode.
+   u-ops are cached in the Execution Trace Cache (TC).
+   
+   TC entries are tagged with thread information and the access is arbitrated
+   each CPU cycle. TC replace entries in LRU.
+   
+   TC sends requests to get new instructions to the Instruction Translation
+   Lookaside Buffer (ITLB)
+ 
+ - Out-of-order Engine:
+
+   The u-op queue decoupled the frontend from this part. The original program
+   order is not taken into account. The allocator group u-op based on their
+   features (e.g. buffer for load/store, another for int arith).
+   
+   The register renaming allows u-ops of different threads to operate in data
+   separation. It also put u-ops in two new queues, one for memory operations
+   another for other operations. 
+   
+   Instruction schedulers take u-ops from the 2 queues and are thread-oblivious.
+   u-ops are evaluated only in base of the avaiability of their operands.
+   
+   The retirement stage commits the microarchitectural stage to the
+   architectural stage. Store operations here are written to L1 cache.
+
+3) Multi-core
+-------------
+
+The Cache Coherence defines the correct behavior of the caches regardless of how
+they are employed.
+
+ - Strong Coherence:
+    
+   All memory operation to a single location (coming from all
+   cores) must be executed in a total order that respects the order of the
+   commits of each core.
+   
+   Two invariants used to implements: SWMR, only one core that can R/W or many
+   cores that can only read a single location. DV says that when an epoch
+   starts the value of a location must be the same value that was at the end
+   of the last epoch with a single R/W core.
+ 
+ - Weak Coherence:
+ 
+   For performance, SWMR is dropped and so DV is only eventually. Loads see the
+   last written value only after N epochs.
+  
+ - No Coherence:
+ 
+   The fastest. Programmers must coordinate cache with explicit requests.
+
+There are two kinds of coherency transactions:
+
+  - Get: load a block into a cache line
+  - Put: evict the block into a cache line
+
+These transactions are associated with messages exchanged to ensure the chosen
+coherence model.
+
+There are families fo coherence protocols:
+
+ - Invalidate protocols: when a core writes it invalidates all other copies in
+   the other cores.
+ 
+ - Update protocols: when a core writes to its cache it also writes to the other
+   caches in all the other cores.
+ 
+ - Snooping Cache: coherence requests are broadcasted to all cores. It needs
+   arbitrarization on the bus to serialize requests and an interconnection layer
+   for the total order.
+   Fast but not scalable.
+ 
+ - Directory Based: coherence requests are unicsated to a directory that
+   forwards only to the appropriate cores. Directory does also serialization.
+   Scalable but not fast.
+
+A cache controller is behind each private caches of each core.
+
+A protocol should offers:
+
+ - Validity: a valid block has the most up-to-date value. Can be written only
+   if it is also exclusive.
+   
+ - Dirtiness: a dirty block has the most up-to-date value but it differs from
+   the values stored in RAM.
+   
+ - Exclusivity: an exclusive block is the only copy of the block across all
+   caches.
+   
+ - Ownership: a cache controller is the owner of a block if it is responsible
+   for its coherence requests.
+
+Write-Through caches have no dirty block cause all stores are immediately
+propagated to the last level cache (LLC).
+
+False Cache Sharing is when two cores access to different data items that are
+on the same cache line. It produces an un-needed invalidation.
+
+The L1 cache is indexed using virtual address and avoid a TLB lookup. Other
+caches use physical addresses.
+
+The Virtual Aliasing problem occurs when there is a cache indexed with virtual
+addresses.
+
+One type is the homonyms problem cause a virtual address can be associated to
+multiple physiscal addresses. A tag may not identify a unique data.
+This can be avoided tagging with an Address-Space-ID or flushing cache on
+context switch.
+
+Another type the synonyms problem cause several virtual addresses may be mapped
+to the same physical address. On cache write only one of them is updated.
+ASID here are not useful, the cache should be flushed on context switch or
+a hardware system to detect the problem or restricting the mapping so that
+shared memories maps on the same cache line.
+
+====================
+The x86 boot process
+====================
+
+1) Initial stage
+----------------
+
+After the hardware power setup the system is very basic:
+
+ - No caches
+ - MMU disabled
+ - CPU in Real Mode
+ - Only one core
+ - Empty RAM
+
+There are 4 basic 16 bit segment registers:
+
+ - CS
+ - DS
+ - SS
+ - ES (extra, used by programmer)
+
+FS and GS added later.
+
+All instructions that use memory access segments.
+For example, jump uses cs implicitly, push uses ss implicitly.
+Segment registers can be loaded with mov but CS only with call/jmp.
+
+In Real Mode, there are 20 bits addresses (1 MB address space). The address in
+segments are the 16 bits higher part.
+The translation is done with: Segment selector * 16 + offset.
+
+E.g. jmp 0x6025 with CS = 0x1000 ---> 0x16025
+
+Addresses can overlap and the format is 0000:0000. Some addresses can be
+represented but not handled (> 20 bits) and teh last usable address is
+000f:ffff.
+
+For compatibility the address space can wrappend-around.
+Address line 20 is forced to 0.
+
+2) BIOS
+-------
+
+The first fetched address is f000:fff0 and called reset vector. This is mapped
+to a ROM, the BIOS.
+In this address, there is a ljmp that sets CS.
+
+The BIOS performs several steps:
+
+ - Map routines to write on the screen.
+ 
+ - POST phase (depends on BIOS implementation): Check RAM consistency, test
+   devices like keyboard and initialize video card.
+   
+ - The configuration is loaded from a CMOS (e.g. boot order).
+ 
+ - Remaps itself in RAM for fast access.
+ 
+ - Identify the Stage 1 bootloader (512 bytes) and loads it at address 0000:7c00
+   and then jumps to it.
+
+3) Stage 1
+----------
+
+This bootloader must be in the first sector of the disk, the MBR. Here there is
+also the partition table.
+The available memory is 640 kb.
+
+At a high level, the MBR is the following:
+
+  jmp stage1_start
+  ...
+  data table for partition etc...
+  ...
+stage1_starts:
+  cli
+  set all segs to 0 (except CS that is already 0 and cannot be assigned)
+
+  Enable address A20 to enlarge addresses using the 8042 keyboard controller.
+  
+  Switch to 32 bit protected mode setting bit 0 of CR0 and apply changes
+  updating CS with a jump
+  
+  Setup stack.
+
+After this process the bootloader cannot load the kernel that is on disk, so
+stage 2 is needed.
+
+4) Protected mode
+-----------------
+
+In protected mode segments are not just numbers but indexes in the Segment
+Descriptor Table.
+
+There are 2 tables, the Global Descriptor Table pointed by the GDTR register
+and the Local Descriptor Table pointed by LDTR (not used anymore).
+
+Each segment selector contains the index to these tables, a bit to say that
+if it is referred to GDT of LDT and the Requested Privilege Level (RPL).
+
+Address resolution is done with *(GDTR + index * 8) + offset. Now
+*(GDTR + index * 8) is always 0 but segmentation can't be disabled.
+
+Each descriptor entry in the table has a Destination Privilege Level (DPL).
+It describes the privilege level associated with the descriptor.
+
+The Requested Privilege Level is present only in data segments (DS and SS)
+and the Current Privilege Level (CPL) is in CS and so can be set only
+with a jmp/call.
+
+To load a segment the following formula must be true:
+
+  MAX(CPL, RPL) <= DPL
+
+Note that RPL can be > CPL.
+
+Gate descriptors are used to get higher privileges (setting a proper DPL).
+
+Gate descriptors are firmware facilities to define target code that can be
+reached from userspace.
+Those descriptors are referenced by the Interrupt Descriptors Table, pointed by
+IDTR reg.
+With the TRAP gate type the handler are located.
+
+In Linux in the GDT there are we different code segments and data segments for
+kernel and user. One GDT per core but they are almost the same. The only
+entries that changes are LDT and TSS.
+
+The TSS is the Task State Segment. It maintains a copy of the CPU state
+and pointers to different privilege levels associated stacks.
+DPL is 0, only kernel mode.
+
+TSS on x64 is completely different. We still have stack pointers but no more
+spaces for saved GPR.
+
+5) Paging
+---------
+
+An additional step in address translation can be added:
+
+ Logical Addr -> [ Segmentation ] -> Linear Addr -> [ Paging ] -> Physical Addr
+
+The linear address now is:
+
+ 32 - 22 Directory | 21 - 12 Table | 11 - 0 Offset
+
+The schema is that the Page Directory gives an entry of the Page Table and the
+offset is used to get the physical address inside the table.
+
+Each page table entry has a PRESENT bit, is 0 a trap is generated.
+
+TLB cache paging mapping.
+
+The address of the Page Directory is stored in CR3.
+
+Physical Address Extension allows to address more than 4 GB of memory and adds
+the Page pointer directory table as the first level.
+
+In x86_64 bits 49 - 64 are short-circuited. PAE is extended with a Page
+General Directory (PGD). In the entries, there is the XD bit to say if a page
+is executable or not.
+
+6) x64 Longmode
+---------------
+
+Gates for ring 3-0 are not used and the switch is more efficient.
+
+The MSR_EFER MSR is written to enable longmode, it can be written only once.
+To apply changes Linux uses an lret to startup_64 routine.
+
+7) UEFI
+-------
+
+UEFI is completely different, the main features are:
+
+ - Bytecode based
+ - Loads firmware from nvRAM into RAM
+ - Startup files stored in the EFI partition
+ - The GUID Partition Table
+ - Secure boot (the image of the OS is signed)
+
+8) Cores wake up
+----------------
+
+Until now only a core worked. To wake up other cores an Inter-Processor
+Interrupt is sent.
+
+The ICR register and the LAPIC controlled is used to send to all cores except
+itself an INIT-SIPI-SIPI interrupt.
+
+The LAPIC routes the request in the APIC bus.
+
+=================
+Memory management
+=================
+
+1) Numa nodes
+-------------
+
+Numa nodes are organized in pglist_data structs, pg_data_t is the typedef.
+pddat_list is the list of structs describing Numa nodes.
+
+Physical memory is managed in term of page frame numbers.
+The index in the list implicitly gives us the physical address.
+
+In each pg_data_t there is an array of associated zones.
+
+ZONE_NORMAL are the first ~ 900 MB for the kernel.
+What is ZONE_NORMAL is stable and always in the page table.
+
+ZONE_HIGHMEM mapping is transient (e.g. userspace mem)
+
+ZONE_DMA mainly for buffer caching (e.g. write back to hard disk)
+
+2) Zones intialization
+----------------------
+
+The zones are initialized after the page table.
+The e820 table in memory is filled by BIOS and describes what page frames are
+available.
+
+zone_t {
+  free_area_t* free_area
+  page* zone_mem_map
+  ...
+}
+
+page {
+  list of mappings
+  count (virtual references to the frame, think about cow)
+  flags
+}
+
+Stady state allocator must be setupped in a way to not touch bootmem allocated
+memory (marked as PG_reserved in page.flags).
+At the end of the initialization, this memory will be given back.
+
+Each description of Numa node is in the memory associated with the node
+(locality for performance).
+
+The buddy allocator in general: two buddies (chunks) can be consolidated with
+size power of 2.
+It can be viewed as a binary tree with labels allocated/free
+(leaves represent frames).
+e.g. we want to allocate 2*PAGE_SIZE, we search until there is a last level node
+with the two leafs both free.
+
+free_area_t {
+    list { prev, next }
+    uint *map
+}
+
+The implementation of Buddy is Linux is not based on a binary tree. There is a
+free list and an array to access in O(1) a level. Each level has a list of
+blocks. When two blocks are consolidated they are moved to the higher level.
+
+In free_area_t we have a bitmap in which each bit represents two buddies that
+is a block that can be served to a request by a higher level.
+When one bit is 1 means that it is split and so at a lower level.
+Freeing is simply setting a bit.
+To request a block request we traverse starting from 0 to MAX_ORDER.
+
+!!! We need sync for this, in fact, in zone_t there is a spinlock.
+
+3) High memory
+--------------
+
+This is not a permanent mapping.
+
+The API to retrieve memory from HIGHMEM are different respect the API used to
+retrieve memory from NORMAL.
+
+Allocation:
+
+ - vmap() get long duration mapping.
+ - kmap() short duration mapping of single page
+ - kmap_atomic() like kmap but for only the cpu that issued it.
+
+Deallocation:
+
+An array of counter pkmap_count[LAST_PKMAP] increments the correct entry when
+the associated page is mapped.
+
+ - 0 not mapped
+ - 1 not mapped now but cached (we mast then invalidate TLB)
+ - n > 1 mapped n-1 times
+
+kunmap(page) decrement this reference counter.
+
+4) Reclaiming boot memory
+-------------------------
+
+mem_init() destroy the bootmem allocator.
+
+The frames are released resetting PG_RESERVED bit.
+
+A fake buddy free is issued (set count to 1 and then __free_page) to put such
+memory into the buddy system.
+
+5) Allocation context
+---------------------
+
+In a process context, if the request cannot be served wait, there is a priority
+based approach. In an interrupt context do not wait.
+
+linux/malloc.h exposed memory management API to other kernel subsystems.
+
+get_zeroed_page, free_page, etc...
+
+There are no sanity checks in free_page (fake chunks yeeee).
+
+There are flags are used to specify the allocation context.
+
+ - GFP_ATOMIC interrupt context (critical, cannot lead to sleep)
+
+ - GFP_USER allocate mem for userspace activities (but not directly used in
+   userspace) (can lead to sleep)
+
+ - GFP_BUFFER alloc a buffer (can lead to sleep)
+
+ - GFP_KERNEL alloc kern mem (can lead to sleep)
+
+With alloc_pages_node we can specify NUMA policies.
+On the contrary, __get_free_pages is agnostic of NUMA.
+
+(TODO in userspace see numa_move_pages)
+
+On top of Buddy system, the kernel builds a set of fast allocators.
+For example pdg_alloc and al. to allocate page tables.
+
+Other allocators are Quicklists and slab/slub/slob allocators.
+
+Quicklists are lists of pages living on a single core.
+
+Note: get_cpu_var(var) like TLS and also disable preemtion
+      put_cpu_var(var) enable again preemption (scheduling to another thread)
+      after processing per CPU var
+
+quicklist {
+    void* page
+    int nr_pages 
+}
+
+page points to pages that have headers to be a linked list of pages.
+nr_pages is the size of such a list.
+
+quicklist_alloc get a page from Quicklist (there are many for a core accessible
+with an index nr).
+When updating selected Quicklist this is done under get_cpu_var.
+
+If there are not available pages in Quicklist fallback to __get_free_page.
+
+Another flag for Buddy system: __GFP_ZERO like calloc.
+
+6) The SLAB allocator
+---------------------
+
+It works on top of the buddy system.
+
+The allocator has caches that have 3 buckets (full/partial/free).
+Each slab manages a set of pages (continuous in physical memory due to the buddy
+structure).
+In each page, there are many objects.
+
+cache:
+--> slabs_full:
+----> slabs:
+------> pages:
+--------> object
+--------> ...
+--------> object
+--> slabs_partial:
+...
+--> slabs_free:
+...
+
+Each slab manages objects of the same size. Slab are moved to full/partial/free
+based on the state of objects in pages.
+
+The slab interface is kmalloc(size, flags), kfree(addr),
+kmalloc_node(size, flags, node).
+
+Slab coloring:
+
+page: | object | coloring | object | coloring | ... |
+
+len ( | object | coloring | ) = L1_CACHE_BYTES
+
+Coloring is padding to ensure that an object is not split in L1 cache
+(so we avoid cache miss when traversing an entire object)
+
+So objects are L1 cache aligned.
+
+============
+System calls
+============
+
+1) Trap initialization
+----------------------
+
+trap_init()
+
+Setup entries on GDT related to syscalls.
+
+It setups also the gate for the trap 0x80 (SYSCALL_VECTOR) to the interrupt
+handler system_call().
+
+2) Syscalls dispatching
+-----------------------
+
+Index in system call stable.
+Syscall handler invoked with an indirect call.
+
+Dispatcher -> Syscall handler -> Dispatcher -> Iret
+
+Iret also restores the original CPL.
+
+Standard macros in include/asm-xx/unistd.h let userspace to access the gate.
+There is a macro for each range of parameters, from 0 to 6.
+
+__syscallN(type, name, type1, arg1, ... typeN, argN)
+__syscall_return(type, res) if res < 0 then errno = -res and res = -1
+
+A syscall that returns a negative value failed.
+
+The dispatcher saves on stack the parameters (pt_regs structure) passed in regs
+and then call the syscall handler.
+
+In x86 there is also a fast syscall path added later and based on sysenter
+and sysexit. The switch is done swapping values with specific MSR added for
+sysenter (SYSENTER_CS_MSR, SYSENTER_EIP_MSR, SYSENTER_ESP_MSR).
+sysret sets eip to the value in edx and esp to the value in ecx, so edx and ecx
+are clobbered.
+
+In x86_64 we have syscall. It uses a different set of MSR respect to sysenter.
+MSR_STAR used to set CS for kernel and user.
+MSR_LSTAR used to set syscall dispatcher address.
+
+vDSO shared library part of kernel code space.
+It implements all the facilities of the kernel that wants to be executed in
+userspace.
+vDSO base addr can be getted using auxiliary elf header. (getauxval()).
+Many routines do not require kernel mode and are served in vDSO to avoid
+context switch (e.g. gettimeofday()).
+_kernel_vsyscall() is used to select the fastest path to syscall. If sysenter
+fails it fallbacks to int 0x80.
+
+3) Syscalls table
+-----------------
+
+In the kernel source, there is a text file that maps name to addresses and it
+is used to generate the table with a shell script.
+
+syscall_64.tbl
+0 common read __x64_sys_read
+
+__SYSCALL_DEFINEx define the implementation of a syscall handler.
+
+SYSCALL_DEFINE3(read, unsigned int, fd, char__user*, buf, size_t, count) {
+  return ksys_read(fd, buf, count);
+}
+
+cNote: har __user* buf; __user is a facility for the symbolic executor.
+
+sys_read is aliased to SyS_read with parameters sign extension for security
+reason.
+
+asmlinkage_protect tells the compiler to not clear the stack in which there are
+the parameters handled by the dispatcher.
+
+4) Call from userspace
+----------------------
+
+sysenter:
+
+Save registers that will be clobbered, update frame pointer, sysenter, restore.
+
+Restore is not really needed.
+
+In __kernel_vsyscall we have:
+sysenter
+int 80h
+pop ebp
+pop edx
+pop ecx
+
+Sysenter uses an MSR and by default return to the location with pops in
+__kernel_vsyscall.
+
+The kernel is using VDSO to specify ret addr for sysenter.
+There is a ret, so we must push the retaddr to our code.
+
+push after
+push ...
+sysenter
+after:
+
+VDSO:
+
+call *%gs:0x10
+
+In GS segment register the kernel puts an address of a structure.
+
+Enter in the same code path, __kernel_vsyscall, and use sysenter.
+
+sysret needs that the kernel must switch back to the userspace stack before
+ executing the instruction. This open a window for a race condition with
+NMI handlers and in fact TSS now has entries for private stacks for NMI
+handlers.
+
+5) Modern syscall activation
+----------------------------
+
+ - syscall instruction.
+ - take entry_syscall_64 addr from LSTAR
+ - save all registers in pt
+ - call do_syscall_64
+ - check nr <= MAX_SYSCALLS
+ - pt->rax = syscall_table[nr](pt)
+
+6) Spectre patch
+----------------
+
+Forcing taking branch in kernel code.
+
+pt->rax = syscall_table[nr](pt) is critical in kernel code.
+
+The retpoline transform a call that depends on data in a safe way for Spectre.
+
+In particular for syscall_table[nr](pt) (r?x managed by register allocation):
+
+mov r?x, QWORD PTR [syscall_table+rax*8]
+call __x86_indirect_thunk_r?x
+
+__x86_indirect_thunk_r?x:
+    call 2fh
+1:  pause
+    lfence
+    jmp 1bh
+2:  mov QWORD PTR [rsp], r?x
+    ret
+
+Uses retaddr replace of the first call to the target location.
+
+The branch prediction can now take only two choices: correct ret value of the
+incorrect, that is label 1.
+
+If CPU misspeculate, it will go in an infinite loop of lfence :)
+
+We can compile the kernel to not use this, the macro is CONFIG_RETPOLINE.
+
+7) sys_ni_syscall
+-----------------
+
+Initially, the syscall table is filled by sys_ni_syscall.
+
+With __SYSCALL_64(nr, sym, qual) [nr] = sym the syscall table entry is filled
+with a different handler.
+
+Deprecated or not implemented syscalls must fail.
+
+The address os sys_ni_syscall can be got with a kprobe.
+
+================
+Loadable modules
+================
+
+1) Initialization
+-----------------
+
+LICENSE macro used to expose reduced facilities if not GPL.
+MODULE_AUTHOR
+MODULE_DESCRIPTION
+
+Can be got with $ modinfo module.ko
+
+module_init(init_callback)
+module_exit(clear_callback)
+
+Linux uses reference counters for LKM (loadable kernel modules).
+They are used for dependency management (e.g. 2 modules depending on the same
+module).
+
+try_module_get() increment the refcount.
+module_put() decrrement the refcount.
+
+if CONFIG_MODULE_UNLOAD is not set at compile time the kernel will not unload
+the module.
+
+2) Parameters
+-------------
+
+module_param(var, type, perm)
+module_param_array
+
+located in sys
+
+IWOTH cannot be used in perms.
+
+3) Build and install
+--------------------
+
+Uses headers installed in system and KBuild.
+
+Load module:
+$ sudo insmod module.ko
+$ sudo insmod module.ko param=value
+
+(parameters with spaces must be encapsulated in quotes)
+
+$ sudo insmod module.ko param='"value"' # double quote fuck u bash
+
+Access printk logs:
+$ dmsg
+
+Unmount:
+$ rmmod module
+
+4) Loading
+----------
+
+Kernel will search for available memory for the module code and data via
+vmalloc.
+
+Modules are PIC. 
+
+In x86_64 we can use RIP-relative data access. mov $0, offset(%rip).
+
+init_module(image, len, param_values)
+finit_module(fd, param_values, flags)
+delete_module(name, flags)
+
+These syscalls requires priviledges.
+
+modpost creates the .ko from .o and and additional C file .mod.c.
+
+Exported symbols with EXPORT_SYMBOL (include/linux/module.h) can be referred by
+other modules.
+
+Symbols are in __ksymtab.
+
+5) Kprobes
+----------
+
+Register a probe (handler) pre or post for a function.
+
+CONFIG_KPROBES=y
+
+register_kprobe(kprobe* p)
+unregister_kprobe(kprobe* p)
+
+Using int3 breakpoint.
+
+Set TF=1 trap flag for single step. After the execution of a single instruction,
+the CPU will trigger a hardware breakpoint. 
+
+Kprobe can be used to get not exported symbols.
+
+e.g.:
+
+struct kprobe kp
+kb.symbol_name = "flush_tlb_all"
+register_kprobe(&kp)
+kp.addr <--- yeee
+unregister_kprobe(&kp)
+
+kretprobe are for return hooks on routines.
+
+6) Versions
+-----------
+
+include/linux/version.h
+
+KERNEL_VERSION(major, minor, release) -> packed in an integer.
+Usually compared with LINUX_VERSION_CODE.
+
+7) Locating syscalls table
+--------------------------
+
+Syscall table is pointing to wrappers (__x64_sys_x) instead of sys_x.
+
+__x64_sys_x copy pt_regs in actual regs and the call sys_x.
+
+We must look at syscall dispatcher in LSTAR (entry_syscall_64 or similar).
+This function does several things, then call do_syscall_64 implements the access
+to the syscall entry.
+
+We must look at the bytecode of such function.
+
+Locate the call to do_syscall_64 (use pattern of bytes) and read the offset.
+
+mov rdi, rax
+mov rsi, rsp
+call do_syscall_64
+
+do_syscall_64 calls then pt->rax = syscall_table[nr](pt).
+
+Now to get the syscall table we must locate the patter to this code.
+
+There are two patterns, the indirect call and the retpoline
+(cfr. chapter 5).
+
+With retpoline is quite complicated, the pattern changes a lot due to different
+registers allocations.
+
+mov rax, DWORD PTR [rbx*8]
+mov rcx, DWORD PTR [rsi*8]
+mov r11, DWORD PTR [rbx*8]
+
+Use a length disassembler to do this. All the instructions that we must search
+are 8 bytes long. The second byte is the actual opcode, mov (0x8b).
+We check also REX prefix to check if the dest reg is 64 bit. This must be true
+because they are function pointers.
+We check also the third byte to check that MOD = 0 and R/M = 100, aka 0 as
+displacement base and 8 as the index.
+
+To write in syscall table we must remove write protection.
+In CR0 we have a bit that set the write policy.
+
+===================
+Interrupts and time
+===================
+
+1) Realtime OS
+--------------
+
+Soft real-time and hard-realtime.
+Hard realtime must have a very low error on time. For instance, a car have a
+real time OS.
+
+Linux is not considered a real-time OS.
+
+2) IDT and GDT
+--------------
+
+In Interrupt Descriptor Table we map a selector to an offset.
+The selector picks a segment descriptor in GDT. Adding offset to the base of
+this segment descriptor points to the interrupt handler.
+IDTR and GDTR are per-CPU registers.
+
+On IDT entries, the type classifies the trap associated.
+
+Look at the idt_bits and gate_struct on Linux. In the entry there is specified
+also the DPL and the Interrupt Stack Table (IST).
+
+When receiving interrupts in user mode we want to transition to kernel space.
+Use gate to set the privilege.
+
+3) IDT entry initialization
+---------------------------
+
+pack_gate() takes parameters for you and fills the gate entry.
+
+Parameters are: gate_desc*, type, func, dpl, ist, seg.
+
+Executing pack_gate directly on IDT entry will cause a crash.
+This function executes many instructions, so the way is:
+
+ - Clone IDT entry
+ - Operate on the clone
+ - Store the clone on the IDT entry (one instruction, not many)
+
+4) Entries types
+----------------
+
+256 possible entries. Each entry is common called vector.
+
+ - 0-19 not maskable interrupts and exceptions (even with IF=0)
+ - 20-31 reserved
+ - 32-127 IRQs
+ - 128 syscalls
+ - 129-238 IRQs
+ - 239 local APIC timer interrupt
+ - 240-250 reserved for future
+ - 251-255 interprocessor interrupts
+
+ Each LAPIC is an interrupt dispatcher and has its time.
+
+5) Gate descriptor
+------------------
+
+It is basically a segment descriptor with 4 types:
+
+ - call-gate:
+      Register a function pointer that is a cross ring call specifying the
+      number of arguments (those arguments are pushed on the source ring stack
+      and the firmware copies them to the new stack). There is not an OS using
+      it.
+ 
+ - interrupt-gate
+ - trap-gate
+ 
+ - task-gate:
+      Made to jump to the scheduler. With NT (Next Task) flag a task can yield
+      explicetely the cpu to a different task. This lives on TSS and no one is
+      using this.
+
+6) Interrupts vs Traps
+----------------------
+
+Async events are interrupts. Can be generated by devices and some of them can be
+masked or not (NMI).
+
+Trap (or exceptions) are synchronous strictly related to the CPU execution.
+
+Using interrupt gates you are telling the firmware to clear the interrupt
+flag (IF). With a trap gate, this is not done.
+Critical section in a trap handler must explicitly use cli/sti but on multi-core
+this may not be enough to guarantee atomicity so the kernel uses spinlocks.
+
+7) Global activation scheme
+---------------------------
+
+When receiving an interrupt a very simple stub is activated. It pushes on the
+stack a code used by the dispatcher to know where to jump (error code).
+Then jump to the handler second stub.
+
+Traps go directly to the handler (vector number pushed by firmware).
+
+If the IDT has an IST value that is not 0 the corresponding stack is taken from
+TSS and used, otherwise is used the stack of the destination ring.
+
+x86 interrupt frame (RSP):
+  - error code/vector
+  - RIP
+  - CS
+  - FLAGS
+  - SP
+  - SS
+
+The handler makes uniform this frame (align stack in case of IRQ etc.)
+
+Then the dispatcher is called. It firstly change GS to the value needed in
+kernel space if the interrupt comes from user space (per CPU vars).
+
+Push the content of the context on pt_regs.
+
+Then activate the proper handler.
+
+The handler returns to the dispatcher that do cleanup and calls iret.
+
+swapgs instruction swap GS if coming from userpace. It relies on another MSR.
+The other incarnation of GS is GSMSR and swapgs exchange those two regs.
+
+User space provenience can be seen using the CPL in the CS on stack.
+
+An exception example is the page fault handler that calls into do_page_fault.
+
+8) Do page fault
+----------------
+
+In kernel mode, to validate the access to user mode pointer, the verify_area()
+or access_ok() routines must be used. This can take a lot of time and happens
+very often.
+
+To do this in an efficient way Linux exploits the MMU, if an invalid pointer
+is accesses a page fault is raised.
+
+The firmware stores in CR2 the address that generates the fault.
+
+Fault type in error code. The instruction address that generated the fault can
+be easily taken from RSP (pushed RIP).
+
+In copy_from_user if passed a wrong address the kernel generates a page fault.
+Otherwise, access checking would be costly.
+
+Do page fault does many things, for example if the address is in the target
+address space but it is swapped the page is read in RAM. For not recoverable
+errors a jump to bad_area() activates a fixup.
+
+The pieces of the kernel that are allowed to crash user code in a special
+section .fixup to recover (e.g. in copy_from_user read bytes are set to 0).
+
+Pieces in .fixup rejumps to .text.
+
+__ex_table is a section used to map text and fixup addresses
+(instructions that may generate a fault -> associated fixup stub).
+
+In 64 bits this changed cause expand the table to handle 64 bit pointer is
+not a good idea. Offset from the current location (32 bits) are used to index
+the __ex_table in x86_64.
+
+9) Multi-core
+-------------
+
+On a single core, the hardware is time shared across threads and this ensure
+consistency of interrupts/traps.
+
+On multi-core, interrupts are delivered to a single core but other core may run
+another thread of the same application.
+
+This may lead to race conditions.
+
+Also, sync code in userspace like VDSO is affected.
+
+Memory unmapping is an example, a portion of the address space if teared down.
+The kernel code has to flush a part of TLB also. The thread that called munmap
+see a consistent state thanks to the TLB update and this is also true for all
+the other threads on the same core.
+
+But if a thread of the same process is on another core? The hardware state is
+inconsistent! The unammped page is still cached on TLB of such core.
+
+10) Inter Processor Interrupts
+------------------------------
+
+Generated by software. They are synchronous for the sender core and asynchronous
+for the receiver core.
+With this mechanism, a core can trigger a state change in another core.
+There are at least 2 priority levels, high or low.
+Low priority is generally enqueued and then sent in batch.
+
+IPI are an interface to APIC/LAPIC circuitry.
+IPI requests go along a dedicated APIC bus (QuickPath on modern Intels).
+
+In Linux high priority are used in critical situations like for sending halt
+after a panic on a core.
+
+There are only 4 available vectors.
+A dedicated vector is for flushing the TLB only (0xfd).
+CALL_FUNCTION_VECTOR is general purpose vector that calls a function pointer
+on another core.
+
+11) IPI API
+-----------
+
+Defined in struct ipi.
+
+There is a way to register an IPI function (this is needed cause there is
+only CALL_FUNCTION_VECTOR).
+
+In old kernels, there was a global struct under locks.
+In 5.0 there is a per-CPU lock-free linked list.
+
+Old steps are:
+
+  - Lock
+  - Set global function pointer
+  - Set a global pointer as an argument to the function
+  - Send IPI
+  - Other core copies function pointer and arg pointer to local variables
+  - Other cores unlock
+
+This does not scale. The lock-free is a better solution:
+
+A CPU adds an element (function + argument) to all the per-CPU lists
+(struct call_single_data_t) of the other cores (yes, a bit spooky) and the
+trigger the IPI.
+
+Note: Remeber lock-free lists use CAS for insertion.
+
+smp_call_function_many() is used to call functions on many cores.
+It uses a bitmask to specify the target cores. Preemption must be disabled.
+
+Basically, for each cpu in the mask take the per-CPU csd (the list) and add an
+element with the function and the arguments. Then send IPI and at the end.
+If wait is specified, wait for the completion flag in the csd of each core.
+
+When interrupts are disabled this function can cause deadlock!
+
+If two cores send IPI to each other and wait until completion both are waiting
+for completion and does not respond to the request.
+
+12) I/O interrupts management
+-----------------------------
+
+Action taken when handling an interrupt are split across:
+
+ - Critical Actions: IF=0, ack the interrupt, reprogram the device, exchange
+   data with the device etc..
+
+ - Non-Critical Actions: IF=1, quick data structures management (data not shared
+   with device).
+
+ - Non-Critical Deferrable Actions: eventually done. Anything else (e.g. copy
+   data to userspace).
+
+Interrupt service routines are the driver entry points and end with iret.
+
+The same IRQ can be shared by multiple devices. Multiple ISR for an IRQ.
+The hardware geometry allows ISR to find out the correct routine.
+
+In IRQ management dispatcher we use another stack if coming from userspace.
+swapgs and do this shit:
+
+We move off the initial part (the critical) to another stack
+(a stack for each cpu).
+
+mov %rsp, %rdi
+mov PER_CPU_VAR(cpu_current_top_of_stack), %rsp
+
+Then copy the interrupt frame from old stack to the new (rdi is also saved).
+
+pushq 0x38(%rdi)
+...
+
+This is a memory-to-memory instruction. Yes, x86 is x86.
+
+Then, begin the common code also if coming from kernel space:
+
+Save the registers and call do_IRQ(interrupt number). The interrupt number can
+be found at the top of the stack cause it is pushed by the initial stub.
+
+Interrupts are disabled, do_IRQ performs the critical actions.
+
+13) Deferred work
+-----------------
+
+Work from interrupts shifted in time, must be handled carefully to not
+introduce starvation.
+
+Those events can be aggregated.
+This reconciliation points can be also specified.
+
+The initial idea was to avoid to process interrupts during a critical section
+that some worker locked before the arriving of interrupts.
+This satisfies a soft real-time constraint.
+
+Top half is the not critical action that is needed to finalize the interrupt.
+Bottom half is the deferrable work, top half schedule it in a proper data
+structure.
+
+Deferred work is executed in the same CPU of the top half. Probably the
+reconcilition point is not to too time after the top half so this choice
+exploits the cache.
+
+14) SoftIRQs
+------------
+
+ - Fired at reconciliation points
+    - Coming back from hard IRQ (IF=1)
+    - Coming back from system call
+    - Specified points
+ - Interruptible (so reentrant)
+ - Rarely used directly
+
+Tasklets are used to not trigger soft IRQ indirectly, otherwise, there will be a
+considerable performance loss.
+
+To trigger them there is a per-CPU bitmap that set if there is a pending
+softIRQ. irq_stat[cpu].__softirq_pending.
+
+In each CPU there is also a low priority thread that checks, when scheduled, if
+there are entries set in this bitmap.
+
+The classes that can be set in the bitmap are 9. For example, there is the
+entry for block devices. The top half register the bottom half here.
+
+There is also the network entry and the timer.
+
+The tasklets entry is general purpose.
+
+__do_softIRQ() this function activates functions that have bit enabled in the
+pending mask.
+
+This switches to private stack and saves a copy of the bitmap (and using those
+copy). This small init work is done with IF=0 and then IF is re-enabled.
+This allows a new top half to register new bottom half while processing old
+bottom halves.
+
+The duration of that routine can be long. To avoid to finish the time windows,
+not all bottom halves are processed but they are left to the low-priority
+daemon.
+
+A tasklet is executed once, but in the handler, you can re-enable it.
+
+Synchronizing tasklets registered by 2 CPU can be a pain, so the kernel enforces
+not concurrent execution of tasklets.
+
+Tasklets run with preemption disabled so you cannot call functions that can
+lead to sleep.
+
+If you want to do this, use the work queue. This works can be executed later.
+Similar to tasklets but without nesting. A pool of threads will execute them.
+
+15) Timekeeping
+---------------
+
+Multiple ways to keep track of time via software and hardware with different
+granularity.
+
+ - Timeouts: used mainly by networking to detect when an event does not occur
+   as excepted. Require low resolution. The average case is that they are
+   removed and does not expire.
+
+ - Timers: sequence ongoing events. Usually needs high resolution.
+
+Hardware Clock Sources:
+
+ - Real Time CLock (RTC), available in all PCs.
+ 
+ - Time Stamp Counter (TSC), uses CPU clock, a monotonic counter that can't be
+   used for time. rdtsc x86 instruction. (this shit can overflow!)
+
+ - Programmable Interval Timer (PIT), programmable laps, send interrupts.
+ 
+ - CPU Local Time (LAPIC), delivers interrupt only to the local CPU.
+ 
+ - High Precision Event Timer (HPET), multiple timers that can be used
+   independently.
+
+Clock events are abstraction introduced in 2.6.
+Those events are generated from Clock Event Devices. Those Devices are
+programmable and the kernel will choose the best hardware support available that
+can generate the event.
+Portability suffer for this, the same code can be less accurate in different
+machines.
+
+The global variable jiffies keeps the number of ticks since startup.
+
+Timer Interrupts are top/bottom half.
+
+Top half:
+  - Register bottom half
+  - Increment jiffies
+  - Check if the scheduler needs to be activated and then set need_resched = 1
+
+Bottom half:
+  - While need_resched call the scheduler
+
+All these parts can produce delays. High resolution timers uses ktime_t type
+that has a nanoseconds scalar representation instead of jiffies.
+
+ktime_t can guarantee a lower bound but not hard real-time.
+
+hrtimer struct and related APIs are used to do this.
+
+Dynamic kernel timers are in timer_list. All functions in the list will be 
+triggered at expire. Based on jiffies.
+
+Releasing resourcing in a function called from a dynamic kernel timer
+must be
+a careful operation.
+Timers must be deleted before releasing resources, they are prone to race
+conditions.
+
+In the Timer Wheel is the place were we register multiple timer_list.
+This is a multilevel priority queue.
+
+The problem is that you do not have guarantees on unlink and placing events.
+This is linear for the bucket and this is a problem.
+Two different balancing operation can take different time on different levels.
+
+Since kernel 2.6 Linux started relying on LAPIC timer. This immediately ack the
+IRQ and then call local_apic_timer_interrupt().
+
+16) Watchdogs
+-------------
+
+A component that monitors a system for "normal" behavior and in case of
+failure  a reset in order to recover normal operation.
+This allows remotely log after a restart without losing machines that are not
+reachable physically.
+
+In Linux a watchdog is implemented in 2 parts:
+
+ - A module that is able to do a hard reset
+ - A userspace application
+
+/dev/watchdog is used to notify the kernel module that the application is
+still alive (done periodically).
+
+The kernel device use NMI to check the counter that counts the notification
+from userspace and then if it is too old hard reset the machine.
+
+===========
+Concurrency
+===========
+
+1) Properties
+-------------
+
+ - Safety: nothing wrong happens
+    * we can associate with a correct sequential execution
+ - Liveness: eventually something good happens
+    * no starvation
+
+The linearizability property tries to generalize the intuition of safety.
+History is a sequence of invocation and replies on an object by multiple
+threads. A sequential history is when invocation has immediate responses.
+
+A history is linearizable if the invocations and responses can be reordered
+to produce a sequential history. A response that precede an invocation must
+also maintain such order in the reordered history.
+
+An object is linearizable if every valid history associated can be linearized.
+
+Liveness (Progress) conditions:
+
+ - Deadlock-free: no deadlock but possibly wasting time
+ - Starvation-free: no one thread get stuck
+ - Lock-free: some method call completes
+ - Wait-free: every method call completes (very rare)
+ - Obstruction-free: every method calls complete if executed in isolation,
+   if you update data that no other thread is touching it will be completed.
+   This is in-between wait and lock.
+
+CAS is lock free cause can fail and not update the memory location.
+
+                   Non-Blocking             |    Blocking
+-------------------------------------------------------------
+For everyone | wait-free | obstruction-free | starvation-free
+-------------------------------------------------------------
+For some     | lock-free |                  | deadlock-free
+
+
+For some is problematic, is not strictly related to my code but to the
+offered scheduling.
+
+2) Concurrent and preemptive kernels
+------------------------------------
+
+Everything in the OS is a task. A modern OS is also concurrent.
+
+The kernel must ensure consistency and avoid deadlocks.
+
+Typical solutions are:
+
+ - Explicit synchronization
+ - Non-blocking synchronization
+ - Data separation (per-CPU variables)
+ - Interrupt disabling
+ - Preemption disabling
+
+3) Race condition example
+-------------------------
+
+my_syscall() {
+  n = len(queue)
+  if (n > 0) {
+    m = kmalloc(1024)
+    pop(queue)
+  }
+}
+
+0. n == 1
+1. kmalloc() stops, thread got to sleep
+2. control to another task, call to my_syscall again
+3. n is again 1
+4. 2 pops of a queue with len = 1
+
+4) Enable/disable
+-----------------
+
+preemt_disable() increments per-CPU counter.
+preemt_enable() decrements per-CPU counter.
+preemt_count() reads this counter.
+
+Non 0 counter tells that preemption is disabled.
+
+Without counter is not possible to call a routine that disables and then enable
+preemption inside a routing that disables preemption, call the previous
+function, then enable preemption.
+
+For each CPU we can reset the IF flag with:
+
+local_irq_disable()
+local_irq_enable()
+irq_disabled()
+
+Nested activations done with:
+
+local_irq_save(flags)     [pushf + pop flags]
+local_irq_restore(flags)  [push flags + popf]
+
+get and put macros of per-CPU vars disable and enable preemption for us.
+per-CPU variables and rescheduling on another core are not good friends.
+
+5) Atomic operations
+--------------------
+
+atomic_t type and atomic_fetch_{add,sub,...} implements RMW instructions.
+
+Bitmap macros are RMW. set_bit(), clear_bit(), ...
+
+6) Barriers
+-----------
+
+Compiler can reorder instruction, avoid with optimization barrier:
+
+#define barrier() asm volatile ("":::"memory")
+
+Out of order pipeline can reorder memory access, use memory barriers:
+
+  - {smp_}mb(): full memory barrier
+  - {smp_}rmb(): reads mem barrier
+  - {smp_}wm(): writes mem barrier
+
+7) Mutex and spinlocks
+----------------------
+
+The terminology is that down and up are wait and signal.
+
+Spinlock does not cause sleep but are polling of a variable. This is good when
+the critical section is small and sleep/wake up time is more than the wait time.
+
+spin_lock_irq and spin_lock_irqsave.
+We do not want interrupts in the middle of a critical section, this will
+increase the time. 
+
+Any spinlock will disable preemption. spin_lock_irq calls local_irq_disable,
+spin_lock_irqsave calls local_irq_save.
+
+With spinlocks, only one thread at a time can be in the critical section.
+
+For this use read/write locks. Multiple readers, one writer.
+Cannot both read and write, with many readers writers can starve.
+Concurrent execution of read operations.
+
+To avoid to starve writers on small simple data (no pointers and no side
+effects) we can use seqlocks.
+
+write_seqlock increments, write_sequnlock also increments.
+Enter in the critical section when the counter is even.
+
+Readers do not acquire the locks, they retry to read data.
+
+do {
+  seq = read_seqbegin(&lock);
+  /* make A COPY */
+} while (read_seqretry(&lock, seq));
+
+8) Read-Copy-Update
+-------------------
+
+RCU is Lock-free. Many readers and one writer concurrently.
+
+3 fundamental mechanism:
+  - publish-subscribe for insertion
+  - wait for pre-existing readers when deleting
+  - maintain multiple versions of RCU-updated objects for readers
+
+Only dynamically allocated data structures, the code can't sleep inside
+an RCU critical section!
+
+Use rcu_assign_pointer as publish to not reorder with barriers.
+
+Read:
+
+rcu_read_lock(); //no real lock, disable preemtion
+p = rcu_dereference(gp); //mem berriers
+if (p != NULL) do_something_with(p->a, p->b);
+rcu_read_unlock();
+
+syncronize_rcu() asks the OS to schedule the code of delete operation on all
+CPU cores.
+Cannot run an operation on a core that is reading cause preemption is disabled.
+This wait for all pre-existing readers to complete.
+
+list_del_rcu(&p->list); // unlink
+synchonize_rcu(); // wait for readers reading the victim node
+kfree(p); // release memory, no UAF here :)
+
+When updating the scenario is similar.
+
+Make a copy of the node, modify the node, list_replace_rcu, sync, kfree(old).
+
+===============================
+Virtual File System and Devices
+===============================
+
+1) Introduction
+---------------
+
+VFS is a software layer which abstracts the actual implementation of devices
+and files. It is a uniform interface.
+
+The representation can be in RAM (full or partial) or in the device (possibly
+outdated before synchronization).
+
+There are 2 parts, the FS-independent part that is an interface towards other
+subsystems of the kernel and the FS-dependent part.
+
+Remember, in UNIX everything is a file.
+
+2) EXT2
+-------
+
+Index Node (inode) is a representation of a node of the tree hierarchy in the
+filesystem. Basically, we have a table of inodes.
+
+Inode
++-+-+-+-+
+| info  |
++-+-+-+-+---> Direct data block 1
+| 1     |
++-+-+-+-+---> Direct data block 2
+| 2     |
++-+-+-+-+         +-+-+-+----> Indirect data block
+| ...   |         | 1   |
++-+-+-+-+-------->+-+-+-+
+| 13    |         | 2   |
++-+-+-+-+         +-+-+-+     +-+-+-+----> Double indirect data block
+| 14    |         ....        | 1   |
++-+-+-+-+-------->+-+-+-+---->+-+-+-+
+| 15    |         | 1   |     | 2   |
++-+-+-+-+         +-+-+-+     +-+-+-+
+                  ...         ...
+
+info is metadata, e.g. permissions. First entries are for direct data blocks.
+When the file grows in size, the space in inode can be exhausted and so the last
+blocks point to indirect data blocks (block of pointers).
+
+Multiple IO operation are needed to locate indirect data blocks and double
+indirect data blocks.
+
+3) VFS global organization
+--------------------------
+
+Inodes in VFS are a different thing than EXT2 inodes.
+
+VFS implements a caching of metadata of the filesystem geometry.
+
+dentry object is a generic abstraction of a node. It can represent folder,
+file, links etc..
+
+For each dentry there is an associated inode that describes the file from a
+device point of view.
+
+dentry has only a child field, but if the dentry is a folder the child is a
+list of dentry. Each child dentry has a parent field.
+
+file_system_type
+    v
+    v     vfsmount
+    v        v
++-+-+-+-+-+-+-+-----^
+| SUPERBLOCK  |     ^
++-+-+-+-+-+-+-+---v ^
+  ^               v ^
++-+-+-+-+------>+-+-+-+-+-+         (possibly belonging to other fs)
+| inode |       |  dentry |
++-+-+-+-+<------+-+-+-+-+-+-- child -->+-+-+-+-+-+---->+-+-+-+-+-+
+                  ^     ^              |  dentry |     |  dentry |
+                  ^     ^--------------+-+-+-+-+-+     +-+-+-+-+-+
+                  ^------------------------------------v
+
+A superblock is an instance of the actual filesystem, vfsmount is the instance
+of the filesystem mounted. There can be multiple vfsmount instances but only
+a superblock for each device (a device can be mounted multiple times).
+
+In inode there can be pointers to frames in RAM that are a cache for pieces of
+files.
+
+struct file_system_type {
+  name
+  fs_flags
+  func ptr super_block* read_super(super_block*, void*, int)
+  module* owner
+  file_system_type* next
+  list_head fs_supers
+}
+
+read_super is bound to the actual filesystem routine that reads the
+super block.
+
+rootfs is an empty root folder while the system is booting. It cannot be
+unmounted and this avoid to check for an empty list (like init does for
+the processes).
+During boot the kernel replaces the mountpoint of rootfs.
+This is the entrypoint of the file_system_type list.
+
+struct vfsmount {
+  list_head mnt_hash
+  vfsmount* mnt_parent  // fs in which is mounted (*)
+  dentry* mnt_mountpoint
+  detry* mnt_root
+  super_block* mnt_sb
+
+  list_head mnt_mounts // not point to vfsmount objects but dentry
+  list_head mnt_child
+
+  atomic_t mnt_count // refcount
+  mnt_flags
+  mnt_devname
+
+  list_head mnt_list
+}
+
+(*) Consider /mnt/foo/bar:
+    / is ext3, /mnt/foo dentry is fat32
+    /mnt/foo is splitted in two dentry objects, one is the folder in
+    /mnt, the other is the root node of the fast32 fs.
+    In the fast32 vfsmount the first object is associated to mnt_parent and is
+    the mnt_mountpoint, the second is mnt_root.
+
+struct super_block {
+  ...
+  file_system_type *s_type
+  super_operations *s_op // bridge between vfs and device dependent part
+  ...
+  dentry *s_root
+  ...
+  list_head s_dirty // dirty inodes
+  ...
+  union { // rigth member given by info in s_type
+    ext2_sb_info ext2_sb
+    ext3_sb_info ext3_sb
+    ...
+    void* generic_sb
+  }
+}
+
+struct dentry {
+  ...
+  inode* d_inode
+  dentry* parent
+  ...
+  list_head d_child
+  list_head d_subdirs
+  ...
+  qstr d_name
+  ...
+  lockref d_lockref // lock and refcount
+  dentry_operations d_op
+  super_block *d_sb
+  ...
+  d_iname[DNAME_INLINE_LEN] //small names
+}
+
+struct inode {
+  ...
+  list_head i_dentry
+  ...
+  uid_t i_uid
+  gid_t i_gid
+  ...
+  inode_operations *i_op
+  file_operations *i_fop
+  super_block *i_sb
+  wait_queue_head_t i_wait
+  ...
+  union {
+    ext2_inode_info ext2_i
+    ...
+    socket socket_i
+    void* generic_ip
+  }
+}
+
+4) VFS and PCBs
+---------------
+
+In PCB fs_struct *fs points to information related to the current directory.
+In this struct we have a pointer to root and pwd.
+
+Two processes with the same pwd are using the same dentry
+(remember the refcount).
+
+If a process removes the directory the VFS keeps the consistency.
+
+5) Operations
+-------------
+
+Superblock operations are function pointers to routines that also give
+statistical info.
+
+ - alloc_inode
+ - read_inode
+ - write_inode
+ - put_inode , release the inode (refcount)
+ - statfs (statistics)
+ - write_super
+ - put_super , release the superblock (refcount)
+ - ...
+
+Dentry operations:
+
+ - delete , remove the pointed inode
+ - put , remove the dentry when refcount = 0
+ - ...
+
+Inode operations:
+
+ - create
+ - lookup
+ - link
+ - unlink
+ - symlink
+ - mkdir
+ - rmdir
+ - mknod
+
+6) Pathname lookup
+------------------
+
+A very critical part. Must be concurrent, safe and permission safe.
+Must handle automount, namespaces, links loops.
+
+Everything based on nameidata structure. Main functions are vfs_path_lookup(),
+filename_path_lookup(), path_lookupat().
+
+Lookup flags are used for example create the endpoint of the lookup or
+allow automount.
+
+/filesystem/path-lookup.* are the file for the documentation in the source
+of the kernel.
+
+7) Syscalls
+-----------
+
+mount (MS_SYNCHRONOUS tell that all writes must be synchronous)
+Two dentry describes a mount point, the outer has the DCACHE_MOUNTED flags and
+it will be skipped while tokenizing a pathname.
+
+In PCB we have a file_struct* files field that is the per-process file
+descriptor table. 
+
+struct files_struct {
+  atomic_t count
+  ...
+  fdtable __rcu *fdt
+  fdtable fdtab
+
+  spinlock_t file_lock ___cacheline_aligned_in_smp // avoid split cache lock
+  uint next_fd // last closed fd or last of the table if full
+  ...
+}
+
+struct fdtable {
+  uint max_fds
+  file __rcu **fd
+  ulong *close_on_exec
+  ulong *open_fds // bitmap
+  ...
+}
+
+There is also an intermediate table in VFS, different process can open the same
+file and points the fd to an entry here. This structure if struct file.
+
+do_sys_open() is split in two parts, the first allocate a file descriptor
+and then calls do_filp_open() that does a path lookup on the target pathname
+and returns the associated struct file.
+
+struct file {
+  path f_path
+  inode *f_inode
+  file_operations *f_op
+  ...
+
+  fmode_t f_mode
+  mutex f_pos_lock
+  loff_t f_pos
+  ...
+  cred *f_cred
+}
+
+Also, close calls put_unused_fd and then filp_close().
+
+In read()/write() syscall we start calling fdget_pos that acquires a lock to
+avoid race conditions.
+
+8) Proc & Sys
+-------------
+
+Proc is an in-memory filesystem that provides info about the OS.
+
+The core structure is proc_dir_entry.
+
+struct proc_dir_entry {
+  u16 low_ino
+  u16 name_len
+  char* name
+  ...
+}
+
+Sys FS is similar in spirit to proc. More clean, with simple I/O to these files
+we can set kernel configuration (e.g. IP forwarding).
+
+Very simple API:
+
+ - Kernel Objects: Directories
+ - Object Attributes: Files
+ - Object Relationships: Symbolic links
+
+sysfs_create_file, sysfs_remove_file, sysfs_update_file are the core API.
+
+struct attribute {
+  char* name
+  struct module *owner // subsystem or loadable kernel module descriptor
+  mode_t mode
+}
+
+kobject describes (with refcount) the kernel object.
+
+Operations for kobject in sysfs are:
+
+struct sysfs_ops {
+  ssize_t (*show)(kobj, attr, buffer)
+  ssize_t (*store)(kobj, attr, buffer, size)
+}
+
+kset are high level facility to group kobjects. It inherits kobject.
+A circular double linked list.
+
+kobject are added to sysfs with kobject_add and kobject_del to avoid races.
+
+9) Devices
+----------
+
+Each device is associated with a MAJOR and a MINOR number.
+MAJOR is a key used by the kernel to access the associated driver (class of
+devices with the same driver).
+MINOR identifies the instance of a single device (can be specified by the
+driver programmer).
+
+There are 2 major classes, char and block devices. The name is a hint of the
+minimum data type handled by the device.
+
+ls -l /dev/sda /dev/ttyS0
+
+Give us info about class, brw-... for block, crw... for char in the
+permissions. Before the date field, there are also MAJOR and MINOR.
+
+lanana assign MAJOR numbers.
+
+The device database describes the devices. Two databases, cdev_map and bdev_map.
+
+struct kobj_map {
+  struct probe {
+    next
+    dev_t dev
+    module *owner
+    data
+  } *probes[255]
+  mutex lock
+}
+
+probes is a hashmap of 255 buckets accessed with MAJOR % 255.
+dev_t is a device number, a concatenation of MAJOR and MINOR, access with
+MAJOR(dev) and MINOR(dev) bitwise macros.
+
+Registering char devices needs to specify file_operations.
+
+UDEV handles userspace events raised when devices are added/removed.
+This is a system daemon in userspace that is notified by the kernel and calls
+mknod to create the file in /dev.
+
+UDEV is based on rules stored in the /etc/udev/rules.d folder. An example is
+the following:
+
+KERNEL=="hdb", DRIVER=="ide-disk", NAME="my_spare_disk", SYMLINK+="sparedisk"
+
+=========
+Processes
+=========
+
+1) Process Control Block
+------------------------
+
+Each process table entry is a PCB. 
+
+ - PC
+ - Regs
+ - State
+ - Priority
+ - Address Space
+ - Open file
+ - ...
+ - Other flags
+
+Lightweight processes have small PCBs (for threads).
+
+In Linux, there is an opposite view. PCB is called task_struct. Everything is a
+task and there are no differences between processes and threads.
+
+This is one of the largest structures in the kernel, we discuss the most 
+relevant fields.
+
+long state is the state of the task (running, zombie etc...).
+
+Memory maps are pointers (mm_struct*) and so different task can share the
+address space just assigning a pointer.
+
+struct mm_struct* mm
+struct mm_struct* active_mm
+
+Kernel thread does not have address space but they can steal address space from
+another userspace task and manage that virtual memory.
+
+if active_mm == NULL The kernel level thread is not stealing mappings from
+the userspace process.
+
+pid_t pid is the identifier of the kernel task (different from userspace pid).
+pid_t tgid is the thread group id (a process id in userspace).
+
+For thread 0 of a process pid == tgid.
+
+struct fs_struct* fs
+struct files_struct* files
+
+Kill trigger a signal in the active thread (by chance), raise() target a
+specific thread of a process.
+
+struct signal_struct* sig
+
+struct thread_struct thread is a snapshot of the CPU dependent state:
+TSS, FPU, CR2, perf events...
+
+Now thread is mostly useless in x86.
+
+int prio to implement the nice() syscall.
+ulong policy for the scheduler.
+int nr_cpus_allowed
+cpumask_t cpus_allowed for e.g. numa stuffs.
+
+2) MM member
+------------
+
+In mm_struct there is a member called pgd that maintains the first level of the
+page table. To schedule a process we write to CR3 current->mm->pgd. Each new
+process has its own page table.
+
+After pgd there is a list called vm_area_struct in which each entry is a
+contiguous virtual area that can be served to user via mmap.
+
+vm_ops are for handling special allocation/deallocation like mmapped files.
+
+If a process wants to finish the RAM the kernel, before that, kills it.
+
+3) PCB location
+---------------
+
+Up to 2.6 PCB is allocated at the bottom of the kernel level stack associated
+to the process.
+
+In 2.6 the devs put a thread_info struct with a pointer to PCB instead of the
+PCB at the bottom of the stack.
+
+Many fields from thread_info were removed in 4.3.
+
+In 3.19 for example in thread_info there is the addr_limit field that can be
+hijacked to allow userspace to read kernel memory (using copy_from_user) and the
+restart_block that contains a function pointer called by the restart() syscall.
+
+Stack was physically contiguous memory via kmalloc but then this changed and now
+the stack is virtually mapped using vmalloc (slower than kmalloc).
+thread_info no more in stack.
+There is a caching system running on top of vmalloc that is slow to create a
+new kernel level stack.
+
+current is a macro that evaluated to the currently scheduled task_struct.
+The early version of the macro did computation based on the SP value.
+Now it is a function that reads a pre-CPU variable.
+
+find_task_by_pid find a task_struct given a pid.
+In 2.6.26 replaced by find_task_by_vpid based on virtual pids. Virtual pids
+allows two processes to have the same pid in different namespaces.
+
+Currently, PCB are found not using a hashtable anymore but with a radix tree.
+
+4) Process and thread creation
+------------------------------
+
+Userspace:   fork()      pthread_create() -> clone()
+               |                                |
+Kernel:      sys_fork ----> do_fork() <----- sys_close()
+
+In Linux, the kernel should never (at except for process creation) allocate
+memory for userspace.
+On thread creation, the new thread stack must be allocated by userspace.
+A pointer to the new stack must be passed to clone(), also the new TLS.
+The kernel must properly set %fs when scheduling the thread so that the access
+to thread local variables is consistent.
+
+Common clone_flags are:
+ - CLONE_VM
+ - CLONE_FS if omitted setup new file system
+ - CLONE_FILES share file descriptors
+ - CLONE_PID
+ - CLONE_PARENT set same parent as the cloner
+
+do_fork() allocate a new PCB, a new kernel stack and copy values based on flags.
+
+dup_mm in do_fork memcopy the current mm and create a new PGD (to implement
+COW).
+
+kthread_create() is the internal API for kernel thread creation.
+kthreads are stopped at creation and must be activated with wake_up_process().
+
+In task_struct there is the signal_mask. Signals are delivered at end of system
+calls.
+
+5) Program start
+----------------
+
+The execve syscall wipes out the memory state, find the executable in the
+filesystem and do not change most of the other fields of PCB.
+
+struct linux_binprm {
+  char buf[]
+  struct page* page[]
+  ulong p // current top of memory
+  int sh_bang
+  struct file* file
+  ...
+}
+
+do_execve() open the binary file, set the top to a value proportional to the
+number of arguments, set arguments, filename and other stuff on the stack of the
+new program.
+
+Then search_binary_handler is called to match the binary image to a function
+that can handle it. If something goes wrong all is freed.
+
+If search_binary_handler cannot find an interpreter ENOEXEC is returned.
+
+For ELFs, load_elf_binary() is called. It loads the image via mmap, reads the
+header (from \x7fELF) and set permissions.
+
+=============================
+Virtualization and Containers
+=============================
+
+1) Hypervisors
+--------------
+
+ - Native: runs bare metal
+ - Hosted: runs as an application, access host services via syscalls
+
+An x86 CPU has no notion of virtualized environment, some instruction must be
+emulated.
+For example, if a guest modify the register that points to the page table it
+also modifies the host state.
+
+Ring deprivileging is needed.
+Running kernel guest at ring 1 is the most used (013 model).
+Running kernel guest at ring 3 (033 model) is too close to emulation, it is
+costly.
+
+Ring 1 cannot access all instructions. Ring 1 is also buggy, some
+instruction that should not be allowed in ring 1 are allowed.
+popf for example always succeed at ring 1, so interrupts can be disabled from
+guest.
+
+The VMM must be able to recognize which guest kernel generated a trap.
+The VMM must virtualize interrupts.
+The VMM must manage the request for access of guest to privileged resources.
+
+In x86_64 we have hardware assisted virtualization, in x86 is all at software
+level.
+
+2) Ring aliasing
+----------------
+
+Some instructions generate an exception if not at ring 0.
+E.g. hlt, lidt, lgdt, invd, mox crX ...
+
+The generated trap must be handled by the VMM.
+
+Those instructions can be replaced lifting the bytecode and recompiling.
+
+Guest context has two modes:
+ - Raw mode: native guest runs ar ring 1 or 3
+ - Hypervisor: VMM executes code at ring 0
+
+Host context is the execution context for userspace portions of the VMM.
+ - The running thread of the VM run in this context upon a mode change.
+ - Emulation of critical instructions is handled here
+
+The kernel must be aware of virtualization. For example, VirtualBox modify the
+GDT to use the ring1 entry of TSS. It also replaces the gate 80h handler with a
+dispatcher that routes the interrupt to the guest if needed.
+
+3) Paravirtualization
+---------------------
+
+VMM offers a virtual interface available to guests: hypercalls.
+
+To run privileged instructions the guests, when it knows that is running
+virtualized, runs hypercalls.
+
+4) Hardware assisted
+--------------------
+
+Intel Vanderpool Technology, VT-x, eliminates the need of software based
+virtualization.
+
+Solved problems: Ring compression, non-trapping instructions (popf) and
+excessive trapping.
+
+Virtual Machine Extension defines the support for VMs on x86 using VMX
+operations.
+
+Kinds of VMX operations:
+ - root: VMM runs here
+ - non-root: Gest runs here
+
+This eliminated ring deprivileging for guests.
+VM Entry is the transition to VMX non-root operation, VM Exit is the transition
+to root operation. Registers and address space are swapped in one atomic
+operation!
+
+VMX Root is a special ring, all privileges of rings 0 plus the possibility to
+switch VMX operations. Now also guests run at ring 0.
+
+VMCS (Virtual Machine Control Structure) is a data structure used to manage
+VMX non-root operation and transitions. 
+
+  - Guest state area, saved CPU state
+  - Host state area
+  - VM execution control fields (for example, which core is exposed to VM)
+  - VM exit control fields
+  - VM entry control fields
+  - VM exit information fields, read-only fields that describe the reason of a
+    VM exit (like guest crash)
+
+First generation VT-x forces TLB flushes each VMX transitions.
+
+Now there is the VPID, a 16-bit virtual processor ID field in VMCS.
+In TLB linear translations are cached with VPID so TLB entries of different VMs
+can coexist in the TLB.
+
+Virtual Address Space -> Physical Address Space (Virtual RAM) ->
+Machine Address Space (RAM).
+
+Also, physical address spaces are virtual for guests.
+
+To handle this additional translation there are several options:
+
+ - Shadow Page Table, map guest-virtual pages to machine pages directly.
+   This page table id read-only, when the guest change it a trap is generated.
+   This is done to synchronize guest page table with shadow page table.
+   There is a virtual CR3. When guest change the virtual CR3, the real CR3 will
+   points to the correspondent shadow page table.
+
+ - Nested/Extended Page Table, translate physical address in VMX non-root using
+   an intermediate set of tables. Very costly TLB miss.
+
+5) Kernel Samepage Merging
+--------------------------
+
+COW is traditionally used to share physical frames. Between virtual machines,
+save space in this way is difficult.
+
+KSM exposes the /dev/ksm pseudofile, with ioctl calls programmers can register
+portions of address spaces.
+
+Windows guests write 0 in newly allocated pages and this is a waste of pages.
+
+Registering the VMM to KSM all pages are scanned and hashed, when a hash
+collide they are mapped to a physical frame and COW protected.
+
+6) Containers mechanisms
+------------------------
+
+ - Cgroups: manage resources for groups of processes.
+
+ - Namespaces: per-process resource isolation.
+
+ - Seccomp: constraints syscalls.
+
+ - Capabilities: privileges avaiable to processes.
+
+7) Cgroups
+----------
+
+In sysfs there is a mount point to a new filesystem type, cgroup: /sys/fs/cgroup
+
+The subfolders describe what can be done with the resource of the folder.
+For example, there are the CPU and mem folders.
+
+In each task_struct there is a pointer to a css_set group and task_struct are
+also linked list items for each cgroup.
+
+task_struct {                   css_set {
+  css_set* cgroups    <------->   list_head tasks
+  list_head cg_list               cgroup_subsys_state * subsys[]
+}                               }
+
+cgroup_subsys {
+  int (*attach)(...)
+  void (*fork)(...)
+  void (*exit)(...)
+  void (*bind)(...)
+  
+  const char* name
+  cgroupsfs_root *root
+  cftype *base_cftypes
+}
+
+Several functions pointers to monitor syscalls for each cgroups.
+In base_cftypes describe the resources (files) allowed to access to the cgroup.
+
+8) Namespaces
+-------------
+
+Different view of data structures and names at process granularity.
+
+ - mnt
+ - pid
+ - net
+ - ipc
+ - uts (unix timesharing, different hostnames)
+ - user
+
+New namespaces created with clone() (new proccess) or unshare() (current).
+setns() attach a process to an existing namespace.
+
+Each namespace is identified by an unique inode in /proc/<pid>/ns.
+
+task_struct {
+  struct nsproxy *nsproxy
+  struct cred* cred
+}
+
+nsproxy is shared between all task_structs with the same set of namespaces.
+
+nsproxy {
+  atomic_t count
+  struct uts_namespace* uts_ns
+  struct ipc_namespace* ipc_ns
+  struct mnt_namespace* mnt_ns
+  struct pid_namespace* pid_ns_for_children
+  struct net* net_ns
+}
+
+struct cred {
+  user_ns
+}
+
+A new net namespace only includes lo device. A network device belongs only to a
+namespace. A virtual device should be created and communicate with a real device
+using the network stack.
+
+struct pid links together the pids in a namespace.
+
+==========
+Conclusion
+==========
+
+The journey ends here. Remember, the universal rule of life is that the
+documentation is the code. Write me if there is something wrong written here.
+
+Good luck for the AOSV exam, don't be afraid, it's easy. Remember that in my
+year the average grade for this exam was 30/30 cum laude. It doesn't matter
+that I was the only one to pass the exam by the end of the year, statistics
+doesn't lie.
+
+If you meet me around the university and have used this file, you are welcome
+to offer me a beer.
+
+Andrea.

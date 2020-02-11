@@ -204,7 +204,7 @@ There are several examples of \textbf{Block Ciphers} like:
 \item We can also extend it to $Z_m$ where $m=pq$ and $p,q$ are \textbf{prime number} and we have:
 \\ $a^{k \cdot \phi (m) + 1} = a\times mod\; m,\; k \geq 0$;
 \end{itemize}
-\item \emph{Quindi in poche parole, $Z_m$ è il set dei resti ottenuti dalla divisione tra i numeri naturali e $m$, $Z_m^{*}$ è il set dei resti ottenuti dalla divisione tra i numeri naturali e $m$ che sono coprimi con $m$ (due numeri sono coprimi se non hanno nessun divisore comune apparte 1), 
+\item \emph{Quindi in poche parole, $Z_m$ è il set dei numeri naturali congruenti in modulo ai numeri che vanno da 0 a a $m-1$, $Z_m^{*}$ è il subset di $Z_m$ considerando solo i numeri coprimi con $m$ (due numeri sono coprimi se non hanno nessun divisore comune apparte 1), 
 la funzione toziente di eulero è la funzione che restituisce il numero di interi coprimi tra 1 e il numero $m$ tipo $\phi(8)=4$ perchè $1,3,5,7$ sono coprimi)};
 \end{itemize}
 \item Let $G$ be a \textbf{group} and $a$ an element of order $n$, the set: $ \langle a \rangle = \{ 1,a,...\;,a^{n-1} \}$ is a \textbf{sub-group} of $G$, $a$ is called the \textbf{generator} of $\langle a \rangle$ (it's the number from which we can generate all the \emph{elements} of the \emph{subgroup}). If $G$ is \emph{generated} by $a$ then $G$ is called \textbf{Cyclic}, and $a$ is the \textbf{primitive element} of $G$. 
@@ -648,12 +648,12 @@ There are weak message that are not good messages to be encrypted with RSA proto
 \[ m =\frac{(C_2 + 2 \cdot C_1 - 1)}{C_2 - C_1 +2)} \] So the \emph{adversary} will be able to get the two \emph{messages} easily, and this works for every \emph{pair} $m_1$ and $m_2 = \alpha m_1 + \beta$. The solution is choose a large $e$. 
 \end{itemize}
 \subsubsection{Chinese Reminder Attack}
-The \textbf{Chinese Remainder Attack} is an \emph{attack} in which an user send the same \emph{message} to three different users with the same \textbf{public key} and we assume $e=3$, let's say $(3,n_1),(3,n_2),(3,n_3)$. \emph{Adversary} knows \emph{public keys} and will know: $m^3 \; mod \; n_1$,  $m^3 \; mod \; n_2$ and  $m^3 \; mod \; n_3$. So he can compute $m^3\; mod\; (n_1 \cdot n_2 \cdot n_3)$ by using the \textbf{Chinese Reminder Theorem}, so we have that $m<n_1, n_2, n_3$ and this means that $m^3 < n_1 \cdot n_2 \cdot n_3$ and therefore we have that:  $m^3 \; mod \; n_1$,  $m^3 \; mod \; n_2 = m^3$. So the \emph{adversary} will compute \emph{the cubic root} and will get the result, the \emph{solution} is to add \emph{random bytes} to avoid equal \emph{messages}. 
+The \textbf{Chinese Remainder Attack} is an \emph{attack} in which an user send the same \emph{message} to three different users with the same \textbf{public key} and we assume $e=3$, let's say $(3,n_1),(3,n_2),(3,n_3)$. \emph{Adversary} knows \emph{public keys} and will know: $m^3 \; mod \; n_1$,  $m^3 \; mod \; n_2$ and  $m^3 \; mod \; n_3$. So he can compute $m^3\; mod\; (n_1 \cdot n_2 \cdot n_3)$ by using the \textbf{Chinese Reminder Theorem}, so we have that $m<n_1, n_2, n_3$ and this means that $m^3 < n_1 \cdot n_2 \cdot n_3$ and therefore we have that:  $m^3 \; mod \; (n_1 \cdot n_2 \cdot n_3) = m^3$. So the \emph{adversary} will compute \emph{the cubic root} and will get the result, the \emph{solution} is to add \emph{random bytes} to avoid equal \emph{messages}. 
 \subsubsection{Same N}
 Another \emph{attack} is when two \emph{users} choose the \textbf{same N}, this means that they have different $p$ and $q$, so one of them can try to compute $p$ and $q$ starting from his $e$, $d$, $N$. Then the user could easily discover the \emph{secret key} of the other user given his \emph{public key}. The \emph{solution} is that each person chooses his own $N$.   
 \subsubsection{Multiplicative Property of RSA}
 Another \emph{weak property} is that if a message $M$ is the \emph{product} of two other \emph{messages} $M_1$ and $M_2$ then by the \textbf{invariance over multiplication} we have that: 
-\[ M^e\; mod\; N = (M_1 \cdot M_2)^e\; mod\: N = (M_1^e\; mod\; N \cdot M_2^mod\; N)\; mod\; N\]
+\[ M^e\; mod\; N = (M_1 \cdot M_2)^e\; mod\: N = (M_1^e\; mod\; N \cdot M_2^e\; mod\; N)\; mod\; N\]
 So an \emph{adversary} can proceed using \textbf{small messages}. The \emph{adversary} wants to \emph{decrypt} $C=M^e\; mod\; N$, so the \emph{adversary} will compute $X = (C \cdot 2^e)\; mod\; N$. He will then use $X$ as chosen \emph{ciphertext} and will ask to the \emph{oracle} (owner of the \emph{private key}) to encrypt the new \emph{message} $Y=X^d\; mod\; N$, but we have that: 
 \[ X = (C\; mod\; N)\cdot(2^e \; mod\;  N) = (M^e \; mod\;  N) \cdot (2^e \; mod\; N) = (2M)^e \; mod\; N\]
 But this means that the \emph{adversary} will get $Y= 2M$ 
@@ -827,13 +827,13 @@ In the \textbf{Mutual Authentication} as the \emph{one-way authentication}, \emp
 \hfill \break
 \\
 \begin{tabular}{C{11cm}  L{10.5cm}}
-This \textbf{variant} is a compact way to do the \emph{mutual authentication}, \emph{Alice} presents to \emph{Bob}, together with the \emph{challenge} $R_2$, \emph{Bob} replies with his \emph{challenge} $R_1$ and with the response to \emph{Alice's challenge}. Finally \emph{Alice} sends back the response to \emph{Bob's challenge}. In this way we only exchange 3 \emph{messages}, and the result as before suffer for the \textbf{Reflection Attack}.
+This \textbf{variant} is a compact way to do the \emph{mutual authentication}, \emph{Alice} presents to \emph{Bob}, together with the \emph{challenge} $R_2$, \emph{Bob} replies with his \emph{challenge} $R_1$ and with the response to \emph{Alice's challenge}. Finally \emph{Alice} sends back the response to \emph{Bob's challenge}. In this way we only exchange 3 \emph{messages}, but this variant suffer the \textbf{Reflection Attack}.
 & \includegraphics[scale=0.55]{cattura33.png}
 \end{tabular}
 \hfill \break
 \\
 \begin{tabular}{C{11cm}  L{10.5cm}}
-The \textbf{Reflective Attack}, is an \emph{attack} that aims to \emph{construct} an extra \emph{session} useful just for the \emph{adversary}. The \emph{second session} will be left \emph{uncompleted}, but is used by the \emph{attacker} to complete the first one. \emph{Trudy} is pretending to be \emph{Alice} (\emph{messages} are \textbf{spoofed}), so she sends to \emph{Bob} “\emph{I’m Alice, this is my challenge} $R_2$”, \emph{Bob} is correcting responding with \emph{encrypted} $R_2$, but \emph{Trudy} cannot send back the \emph{encrypted} $R_1$ cause it doesn't know the \emph{key}. So she start another \emph{session} with \emph{Bob} with the \emph{challenge} $R_1$ that received from \emph{Bob} in the \emph{first session}, and in the \emph{second session} he will get the \emph{correct result} of the \emph{encryption} of $R_1$ with another \emph{challenge} $R_3$, that he will \emph{ignore}. \emph{Bob} can obviously suspect because the \emph{second session} will be uncompleted. We can have two different solutions, like using \emph{different keys} for each \emph{session} ($K_{AB}$ and $K_{AB}+1$) or \emph{different challenges}.
+The \textbf{Reflection Attack}, is an \emph{attack} that aims to \emph{construct} an extra \emph{session} useful just for the \emph{adversary}. The \emph{second session} will be left \emph{uncompleted}, but is used by the \emph{attacker} to complete the first one. \emph{Trudy} is pretending to be \emph{Alice} (\emph{messages} are \textbf{spoofed}), so she sends to \emph{Bob} “\emph{I’m Alice, this is my challenge} $R_2$”, \emph{Bob} is correcting responding with \emph{encrypted} $R_2$, but \emph{Trudy} cannot send back the \emph{encrypted} $R_1$ cause it doesn't know the \emph{key}. So she start another \emph{session} with \emph{Bob} with the \emph{challenge} $R_1$ that received from \emph{Bob} in the \emph{first session}, and in the \emph{second session} he will get the \emph{correct result} of the \emph{encryption} of $R_1$ with another \emph{challenge} $R_3$, that he will \emph{ignore}. \emph{Bob} can obviously suspect because the \emph{second session} will be uncompleted. We can have two different solutions, like using \emph{different keys} for each \emph{session} ($K_{AB}$ and $K_{AB}+1$) or \emph{different challenges}.
 & \includegraphics[scale=0.55]{cattura34.png}
 \end{tabular}
 \hfill \break
@@ -1007,8 +1007,7 @@ The \textbf{attack} can have place only on a certain precondition: \emph{Trudy} 
 \end{itemize}
 So with this \textbf{attack} \emph{Bob} thinks that he is talking with \emph{Alice}, but instead there is \emph{Trudy} in the \emph{middle}. The only required thing is that \emph{Trudy} is able to force \emph{Alice} to issue an \emph{authentication} with her, and if they belong to the same enterprise or something like this it is not so difficult because \emph{Trudy} maybe has some reasons to invite \emph{Alice} to be \emph{authenticated} by \emph{Trudy}.
 \subsubsection{Needham-Schroeder public key fixed variant}
-There is so a \textbf{fixed variant}, that permits to avoid the \emph{attack} just described, that is very similar to the previous one, in which the only thing that changes is that when \emph{Bob} is sending back the two \emph{nonce} instead of  $\left \langle K_{PA}(N,N^{'}) \right \rangle$ will send  $\left \langle K_{PA}(B,N,N^{'}) \right \rangle$ so he send his \textbf{identity}. We can avoid the \emph{attack} cause \emph{Trudy} cannot send to \emph{Alice} the identity of \emph{Bob} while she is talking to \emph{Alice}, in fact if \emph{Trudy} will forward this message \emph{Alice} will know that she is talking with \emph{Bob} and not with \emph{Trudy}. \\\\
-We have not introduced yet the definition of \textbf{Digital Certificate}. The \emph{Digital Certificate} is the message, sent by the \emph{trusted authority} C, which contains the \emph{public key} of someone together with the \emph{digital signature} of this \emph{message}. When \emph{Alice} asks to the \emph{authority} C for the key of \emph{Bob}, and the \emph{authority} replies with $\left \langle K_{PB}, Sig\_C(K_{PB},B)\right \rangle$, this message can be considered a \textbf{Digital Certificate} that certifies that $K_{PB}$ is the \emph{public key} of \emph{Bob}.
+There is so a \textbf{fixed variant}, that permits to avoid the \emph{attack} just described, that is very similar to the previous one, in which the only thing that changes is that when \emph{Bob} is sending back the two \emph{nonce} instead of  $\left \langle K_{PA}(N,N^{'}) \right \rangle$ will send  $\left \langle K_{PA}(B,N,N^{'}) \right \rangle$ so he send his \textbf{identity}. We can avoid the \emph{attack} cause \emph{Trudy} cannot send to \emph{Alice} the identity of \emph{Bob} while she is talking to \emph{Alice}, in fact if \emph{Trudy} will forward this message \emph{Alice} will know that she is talking with \emph{Bob} and not with \emph{Trudy}. 
 \clearpage
 \subsection{X.509 Standard}
 \textbf{X.509} is a \textbf{standard} for \emph{authentication} of different types, which means that they define \emph{protocols}, not \emph{encryption} or \emph{hashing functions }specially related to protocol's steps. In this standard\emph{ 3 authentication protocols} have been defined: 
@@ -1039,8 +1038,24 @@ We have not introduced yet the definition of \textbf{Digital Certificate}. The \
 \item The last \emph{message} is from \emph{Alice} to \emph{Bob}: $\left \langle B, Sig\_A(N, N^{'}, B) \right \rangle$ so she send the two \emph{nonces} and the identity of \emph{Bob} signed by the \textbf{digital signature};
 \end{itemize}
 \end{itemize}
+\item \textbf{Canadian Attack}:
+\begin{itemize}
+\item Before the protocol was: 
+\begin{itemize}
+\item $B \rightarrow A$ : $N_B$;
+\item $A \rightarrow B$: $\left \langle CertA, N_A, N_B, B, Sig\_A(N_A,N_B,B) \right \rangle$;
+\item $B \rightarrow A$: $\left \langle CertB, N_A, N_B, A, Sig\_B(N_A,N_B,A) \right \rangle$;
 \end{itemize}
-\clearpage
+\item But with the \textbf{Canadian Attack}:
+\begin{itemize}
+\item Trudy act like Bob so: $T \rightarrow A$ : $N_T$;
+\item $A \rightarrow T$: $\left \langle CertA, N_A, N_T, B, Sig\_A(N_A,N_T,B) \right \rangle$;
+\item Trudy act like Alice so: $T \rightarrow B$ : $N_A$;
+\item $B \rightarrow T$: $\left \langle CertB, N_A, N_B, A, Sig\_B(N_A,N_B,A) \right \rangle$;
+\item Trudy now can reply to Alice: $\left \langle CertB, N_A, N_B, A, Sig\_B(N_A,N_B,A) \right \rangle$, so Trudy is now \textbf{authenticated}, \emph{the presence of $N_B$ and not $N_T$ d'amore says has the same role as the use of Bob in step 6 of original NS protocol};
+\end{itemize}
+\end{itemize}
+\end{itemize}
 \subsection{PKI: Public Key Infrastructure}
 \textbf{Certificates} are provided by trusted \textbf{Certification Authorities}. The specific \emph{Certification Authority} (\textbf{CA}) provides \emph{certificates} just for the \emph{users} in its domain, when someone asks for the \emph{public key} of an \emph{user}, the \emph{CA} replies with the \emph{public key} of the \emph{requested party} signed by the \emph{private key} of the \emph{CA}. This also means that we have only to remember just one \emph{public key}, that is the \textbf{CA’s public key}. It's important to note that if \emph{CA} is not \emph{trusted} all its \emph{certificates} are useless, \emph{keys} are not used forever and the length of the \emph{keys} is related to security level. 
 \subsubsection{X.509 Certificate's Fields}
@@ -1059,7 +1074,6 @@ The \textbf{X.509 standard} describes the structure of a \textbf{Digital Certifi
 \item \textbf{SUBJECT PUBLIC KEY}: it contains two \emph{subfields} that are the \emph{algorithm} with which the \emph{public key} has been created, and the\emph{ public key }itself.
 \item \textbf{...}
 \end{itemize}
-\clearpage
 \subsubsection{Hierarchy of CAs}
 \begin{tabular}{C{10cm}  L{10.5cm}}
 Now let’s come back to the problem of how \emph{Alice} and \emph{Bob} can check their \emph{certificates}, if \emph{Alice} and \emph{Bob} use the same \emph{CA} there is no problem, but if they use different \emph{CA} then we can have a problem. In general \emph{CA’s} form a \textbf{hierarchy}, for example it may be that the \emph{public key} of \emph{Alice} is certified by the \emph{certificate} provided by \emph{Alice’s CA}, and the \emph{certificate} provided by this \emph{CA} is certified by \emph{Bob’s CA}. Note: certifying a \emph{certificate} of a certain \emph{CA} means providing the \emph{public key} of that \emph{CA}. 
@@ -1083,7 +1097,6 @@ A \textbf{dictionary attack} is an attack in which an \emph{attacker} take a lon
 One can think of inventing a \emph{password} and \textbf{hashing it}, then using the \emph{hash} as \emph{password}, you can also store somewhere the \emph{hash}. So the idea is that the \emph{password} typed by the user is converted to a \emph{key} of 56 bit with 8 parity bits added (\emph{DES key structure}). At the beginning \textbf{UNIX} used this approach, storing only the first 8 characters of the \emph{key} (when \emph{ASCII} was the standard, which used 7 bits in order to represent characters). What changed then is that \emph{DES} was used, and was performed 25 times on a 8 bytes string of zeroes using the \emph{key} created as mentioned above, so the \textbf{key} stored in the \emph{system} was $DES_K(DES_K(…DES_K(00000000)))$ for 25 times. \\\\
 There is a file $/etc/passwd$ in which each \emph{row} is a \emph{user}, where there are collected useful information, there are collected also the \textbf{encrypted passwords}, and every \emph{user} can read such \emph{file}. In the modern \emph{Unix} implementation the $passwd$ file does not contain anymore the \emph{encrypted passwords} because it was a weakness since one could copy that file and do some precomputation on stored encrypted passwords.\\\\
 In order to avoid \emph{dictionary attack}, and in order to increase \emph{security}, when a \emph{user} is storing the \emph{password}, the system generates a 12 bit random number, the \textbf{salt}, that is concatenated to the \emph{password}, this is the \textbf{salted password}, that will be encrypted. The \emph{salt} is \emph{per-user generated} and is stored as \emph{clear text}, so the \emph{attacker} can no longer use \emph{dictionary attack} because of the \emph{salt} (actually he can but it requires more \textbf{computational effort}). What we want is to reach an \emph{approach} in which \emph{users} only have to remember their \emph{password}, without further heavy crypto-information, and then we want to use \emph{cryptography} in order to make this approach secure. We use this approach in such a way that no \emph{security information} is kept at the \emph{user's machine} and someone impersonating either \emph{party} will not be able to obtain any \emph{information}.
-\clearpage
 \subsection{Lamport's Hash}
 Lamport invented the \textbf{OneTimePassword}. It works in the following way: 
 \begin{itemize}
@@ -1104,7 +1117,6 @@ Lamport invented the \textbf{OneTimePassword}. It works in the following way:
   \includegraphics[scale=0.5]{cattura47.png}
 \end{figure}
 There is an attack called \textbf{Small \emph{n} attack}, in which when \emph{Bob} has to send to \emph{Alice} the number $n$, \emph{Trudy} will impersonate \emph{Bob} and can send to \emph{Alice} an $n^{'}$ such that $n^{'}<n$, and \emph{salt}, so what happens is that \emph{Alice} sends to \emph{Trudy} the $n^{'}$ times \emph{hash of the password}, so \emph{Trudy} can impersonate \emph{Alice} until $n$ is equal to $n^{'}$ so for $n - n^{'}$ times. In order to avoid this, the \emph{Alice's workstation} shows submitted $n$ to \emph{Alice} to verify the \emph{approximate range}. Instead if \emph{Alice workstation} is too \textbf{dumb} to do \emph{hashing}, \emph{Alice} is given a list of \emph{hashing} from $n$ so she uses each \emph{hash} once, in such a way that this \emph{attack} is prevented. 
-\clearpage
 \subsection{Encrypted Key Exchange, EKE}
 The problem is that it is still possible to use a dictionary attack if weak keys are chosen. So we introduce an authentication approach called Encrypted Key Exchange, or EKE, deeply based on Diffie-Hellman, in which we have mutual authentication and which define a session key. In this scenario two parties share a weak secret $W$, that is a function that that only the two parties know, $W = f(psw)$. 
 \begin{itemize}
@@ -1399,6 +1411,11 @@ Remind that the original \textbf{Diffie-Hellman} is vulnerable to\textbf{ man-in
 Used to create \textbf{one-time secret keys}, and the \emph{DH public keys} are exchanged signed using \emph{Sender's private RSA} or \emph{DSS key}. The \emph{receiver} can use the corresponding \emph{public key} in order to verify the \emph{signature}, and \emph{certificates} are used to authenticate the \emph{public keys}. This can be considered the most secure one since the \emph{authenticated key} is \emph{temporary}. 
 \subsubsection{Anonymous Diffie-Hellman}
 It's the base \textbf{DH algorithm}, so \textbf{without authentication}, each \emph{party} will send its \emph{public DH parameters} to the other, but this approach is vulnerable to \emph{man-in-the-middle attack} so it is not allowed anymore since TLS 1.2. 
+\subsection{Attacks against TLS}
+\subsubsection{Downgrade Attack}
+An \emph{adversary} cheats the \emph{server} and other \emph{clients} in order to use an \textbf{older protocol}, so in this way he can use \emph{older algorithms} or \emph{parameters} that he can manipulate and that are not more \emph{secure}, in such a way that he can modify the \emph{traffic flow} in order to accomplish a \textbf{man-in-the-middle}. 
+\subsubsection{Heart Bleed}
+\textbf{Heartbeat} was an \emph{extension} of the \emph{TLS protocol}, that offers a way to keep alive \emph{secure communication} without need to restart the \emph{connection} each time based on exchange of \emph{messages}. But the \emph{older version} allocate a \textbf{memory buffer} (on \emph{server-side}) for the \emph{message} to be returned based on the \emph{length field} in the \emph{requesting message}, without regard to the actual size of the \emph{payload}, so an \emph{adversary} cheats on the \emph{length field}, so he will receive a huge amount of \emph{data} from the \emph{secure server}.
 \section{Firewalls}
 \textbf{Firewalls} have nothing to do with \emph{cryptography}, they offer a different kind of \emph{security}. The idea is to separate the \emph{local network} from the \emph{internet} in such a way that every \emph{data} entering the \emph{local network} will be \textbf{analyzed} by the \emph{firewall}. Commonly it is the \emph{incoming data} that has to be analyzed, \emph{packets} outgoing the \emph{network} are not so important, but actually also they can be analyzed, because some patterns can be recognized. \\\\
 The \emph{local network} can be made such that the \emph{firewall} affects all the \emph{traffic} coming from the \emph{outside world} except for the so called \textbf{Demilitarized Zone} (\textbf{DMZ}), which is a zone in our \emph{local network} accessible from \emph{outside}, and it is useful when our \emph{local network} provides some \emph{Server} (which cannot be reached if a \emph{firewall} is placed between it and the internet). \textbf{Firewalls} can be applied more then one \emph{firewall}, a common behavior is to have one general \emph{firewall} for the \emph{whole network}, and other special \emph{firewalls} for certain \emph{machines}, so \emph{PCs} can have their \emph{personal firewall}. \\\\
@@ -1412,8 +1429,8 @@ The \emph{local network} can be made such that the \emph{firewall} affects all t
 \begin{itemize}
 \item The \emph{firewall} acts like a a \textbf{gateway}, in the sense that all \emph{incoming traffic} is directed to the \emph{firewall} and all \emph{outgoing traffic} appears to come from the \emph{firewall}. It can be categorized in:
 \begin{itemize}
-\item \textbf{Application-level}: in which every \emph{application} has its own \emph{proxy firewall};
-\item \textbf{Circuit-level}: the \emph{firewall} works at lower level, so it is invisible to \emph{application level};
+\item \textbf{Circuit-level}: the \emph{firewall} works at lower level, so it is invisible to \emph{application level}. Splices and relays two \emph{TCP connections} in such a way that only the \emph{validity} of the \emph{connection} is checked (through a \emph{table}) and not the \emph{content} of it;
+\item \textbf{Application-level}: in which every \emph{application} has its own \emph{proxy firewall}. Splices and relays \emph{app-specific connections} like the one of \emph{browsers}, and has a high level of \emph{control} wrt the \emph{circuit level}, but the \emph{overhead} is higher;
 \end{itemize}
 \end{itemize}
 \item \textbf{Personal Firewall}:
@@ -1436,6 +1453,7 @@ In \emph{Linux distributions} there is a useful tool that provides \emph{firewal
 When we are implementing a \textbf{personal firewall} then \emph{Input} and \emph{Output chains} are meaningful, instead \emph{Forward chain} is not important. On the contrary, when \emph{IPtables} is working on a \textbf{gateway}, then \emph{Forward chain} is the most important.  \\\\
 Working with \emph{IPtables}, a \emph{decision} associated to a specific \emph{rule} is called \textbf{target}, that specifies what to do if that \emph{packet} has matched with that \emph{specific rule}. The most common targets are \textbf{accept}, \textbf{drop}, \textbf{queue}, \textbf{return}. \emph{Accept}, let the \emph{packet} through, \emph{Drop}, drop the \emph{packet}, \emph{Queue}, pass the \emph{packet} to \emph{userspace}, \emph{Return}, stop with this \emph{chain} and resume the next \emph{rule} in the previous \emph{calling chain}. Of course \textbf{custom targets} can be written and it will be implemented as a \emph{sub-chain}, so other \emph{rules} with other \emph{targets}. Here the \emph{return target} makes sense, where it means that we have to \emph{come back }to the \emph{upper chain} and \emph{continue analyzing}. It is like a \emph{custom target} is a sort of routine that we write. \\\\
 Then there is the concept of \textbf{external module}, that can be \emph{imported} for implementing \emph{filters} for a \emph{specific protocol}, and the we can change \emph{rules} within the \emph{module}. This because of course it requires too much effort to configure \emph{IPtables} from scratch, so we can rely on \emph{built patterns} and then we modify them according to our \emph{preferences}.
+\clearpage
 \subsubsection{Examples of IPtables}
 First of all, let’s see the \textbf{command line} usage of \emph{IPtables}:
 \begin{figure}[H]
